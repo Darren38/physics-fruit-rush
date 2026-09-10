@@ -14,7 +14,17 @@ Read the question. Find the answer. Slice the fruit.
 [![Languages](https://img.shields.io/badge/languages-English%20%7C%20Bahasa%20Melayu-teal.svg)](#two-languages-one-game)
 [![Version](https://img.shields.io/badge/version-4.0-blueviolet.svg)](CHANGELOG.md)
 
-<img src="docs/gameplay.jpg" alt="Physics Fruit Rush gameplay - the question 'SI unit of momentum?' above four answer fruits, one sliced open" width="820">
+<br>
+
+[![Play now in English](https://img.shields.io/badge/PLAY%20NOW-English-2ea44f?style=for-the-badge)](https://darren38.github.io/physics-fruit-rush/)
+&nbsp;
+[![Main sekarang dalam Bahasa Melayu](https://img.shields.io/badge/MAIN%20SEKARANG-Bahasa%20Melayu-0f766e?style=for-the-badge)](https://darren38.github.io/physics-fruit-rush/?lang=bm)
+
+No download, no login — it opens in the browser on a laptop, tablet, phone or classroom screen.
+
+<a href="https://darren38.github.io/physics-fruit-rush/"><img src="docs/gameplay.jpg" alt="Physics Fruit Rush gameplay - the question 'SI unit of momentum?' above four answer fruits, one sliced open. Click to play." width="820"></a>
+
+*Click the picture to play.*
 
 </div>
 
@@ -36,8 +46,11 @@ minutes ends up revising for ten.
 
 ## Quick start
 
-**Download the repo and double-click `index.html`.** That is the whole
-installation.
+**Just want to play?** Open **<https://darren38.github.io/physics-fruit-rush/>** —
+nothing to install.
+
+**Want it offline, or on a school computer with no internet?** Download the repo and
+double-click `index.html`. That is the whole installation.
 
 No server, no build step, no npm install, no login, no database, no internet
 connection after the first load.
@@ -48,13 +61,19 @@ If a school-managed browser blocks `file://`, serve the folder with anything:
 python -m http.server 8000
 ```
 
-**For a Bahasa Melayu class**, open or share the game with `?lang=bm` on the end —
-`index.html?lang=bm`, or `https://<you>.github.io/<repo>/?lang=bm` once it is online.
-The link sets the language and remembers it; students can still switch at any time.
+**For a Bahasa Melayu class**, share
+**<https://darren38.github.io/physics-fruit-rush/?lang=bm>** (or open
+`index.html?lang=bm` offline). The link sets the language and remembers it; students
+can still switch at any time.
 
 ### Play it online
 
-1. Push this repository to GitHub.
+* English — **<https://darren38.github.io/physics-fruit-rush/>**
+* Bahasa Melayu — **<https://darren38.github.io/physics-fruit-rush/?lang=bm>**
+
+### Publish your own copy
+
+1. Fork this repository, or push a copy of it to your own GitHub account.
 2. **Settings → Pages → Build and deployment → Source: `GitHub Actions`.**
 3. Push to `main`.
 
@@ -318,7 +337,8 @@ languages, is under 500 KB and works offline.
 * Runs on desktop, laptop, tablet, phone and interactive classroom displays.
 * No accounts and no data leaves the device. If storage is blocked (private window,
   locked-down school browser) the game still plays — it just forgets.
-* Share `?lang=bm` with a BM class; students can still switch on the menu.
+* Share **<https://darren38.github.io/physics-fruit-rush/?lang=bm>** with a BM
+  class; students can still switch on the menu.
 * For a whole-class round, set **Question Mix → Balanced** in the setup screen so
   the projected questions are not tuned to one device's history.
 * Every control is at least 44 px tall and has a visible focus ring; feedback never
