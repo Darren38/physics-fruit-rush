@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<!-- translate="no": the game ships its own Bahasa Melayu. A browser's
+     machine translation would re-translate physics terms that are already
+     correct - and "Air" (BM for water) would come back as "Udara". -->
+<html lang="en" translate="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="google" content="notranslate">
+<meta name="description" content="Physics Fruit Rush - a fast arcade recall game for Malaysian KSSM Form 4 Physics, in English and Bahasa Melayu.">
+<meta name="theme-color" content="#0a1024">
+<title>Physics Fruit Rush</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8D%89%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============================================================
+       LANDING
+       ============================================================ -->
+  <section class="screen is-active" id="screen-menu">
+    <div class="menu-wrap">
+
+      <!-- Language. Top of the menu, visible without scrolling on any
+           screen, and the first thing a student meets. Each option is
+           written in its OWN language ("Bahasa Melayu", never "Malay"),
+           so a student who cannot read the current one can still find
+           theirs. The group label is deliberately bilingual and constant. -->
+      <div class="lang-switch" role="group" aria-label="Language / Bahasa">
+        <svg class="lang-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="9"></circle>
+          <path d="M3 12h18M12 3c2.6 2.6 3.9 5.6 3.9 9s-1.3 6.4-3.9 9M12 3C9.4 5.6 8.1 8.6 8.1 12s1.3 6.4 3.9 9"></path>
+        </svg>
+        <button type="button" class="lang-opt is-on" data-lang="en" lang="en" aria-pressed="true">English</button>
+        <button type="button" class="lang-opt" data-lang="ms" lang="ms" aria-pressed="false">Bahasa Melayu</button>
+      </div>
+
+      <div class="logo">
+        <div class="logo-fruit" aria-hidden="true">
+          <span>🍉</span><span>🍊</span><span>🥝</span>
+        </div>
+        <h1 class="title">PHYSICS<span>FRUIT RUSH</span></h1>
+        <p class="subtitle" data-i18n="menu.subtitle">KSSM FORM 4 PHYSICS</p>
+        <p class="tagline"><span data-i18n="menu.tag1">Think Fast.</span> <b data-i18n="menu.tag2">Slice Faster.</b></p>
+      </div>
+
+      <div class="menu-buttons">
+        <button class="btn btn-primary" data-go="quick">
+          <b data-i18n="menu.quick">QUICK GAME</b><small data-i18n="menu.quick.sub">60 seconds · 5 lives · all topics</small>
+          <span class="btn-best" id="bestQuick" hidden></span>
+        </button>
+        <button class="btn" data-go="topic">
+          <b data-i18n="menu.topic">TOPIC CHALLENGE</b><small data-i18n="menu.topic.sub">One topic, then a mastery report</small>
+          <span class="btn-best" id="bestTopic" hidden></span>
+        </button>
+        <button class="btn" data-go="practice">
+          <b data-i18n="menu.practice">PRACTICE</b><small data-i18n="menu.practice.sub">No pressure · explanations · retries</small>
+        </button>
+        <button class="btn btn-ghost" data-go="custom">
+          <b data-i18n="menu.more">MORE MODES</b><small data-i18n="menu.more.sub">Time Rush · Survival · speed settings</small>
+        </button>
+        <button class="btn btn-ghost" data-go="help">
+          <b data-i18n="menu.help">HOW TO PLAY</b><small data-i18n="menu.help.sub">Takes 15 seconds</small>
+        </button>
+      </div>
+
+      <!-- Progress: three numbers, one bar and one next action. Deliberately
+           not a statistics dashboard. -->
+      <section class="progress-card" id="progressCard" aria-labelledby="progressHead">
+        <h2 class="progress-head" id="progressHead" data-i18n="progress.head">YOUR PROGRESS</h2>
+
+        <p class="progress-empty" id="progressEmpty" data-i18n="progress.empty">
+          Play a few questions to start building your progress.
+        </p>
+
+        <div class="progress-body" id="progressBody" hidden>
+          <div class="mastery">
+            <div class="mastery-top">
+              <span class="mastery-label" data-i18n="progress.mastery">Overall mastery</span>
+              <span class="mastery-value" id="masteryValue">0%</span>
+            </div>
+            <div class="mastery-bar">
+              <i id="masteryFill" style="transform:scaleX(0)"></i>
+            </div>
+          </div>
+
+          <dl class="progress-grid">
+            <div class="progress-item">
+              <dt data-i18n="progress.answered">Answered</dt><dd id="progAnswered">0</dd>
+            </div>
+            <div class="progress-item">
+              <dt data-i18n="progress.strongest">Strongest</dt><dd id="progStrong">&ndash;</dd>
+            </div>
+            <div class="progress-item">
+              <dt data-i18n="progress.next">Practise next</dt><dd id="progWeak">&ndash;</dd>
+            </div>
+          </dl>
+
+          <button class="btn btn-focus btn-wide" id="practiseWeakBtn" type="button" hidden>
+            <b data-i18n="progress.practiseWeak">PRACTISE WEAK TOPICS</b><small id="practiseWeakSub"></small>
+          </button>
+        </div>
+
+        <div class="menu-utils">
+          <button class="link-btn" id="resetProgressBtn" type="button" data-i18n="progress.reset">Reset progress</button>
+        </div>
+      </section>
+
+      <p class="menu-foot">
+        <span id="bankCount">&nbsp;</span> &middot;
+        <span data-i18n="menu.offline">Works offline</span> &middot;
+        <span data-i18n="menu.nologin">No login needed</span>
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       SETUP  (classroom launcher)
+       ============================================================ -->
+  <section class="screen" id="screen-setup">
+    <div class="panel">
+      <div class="panel-head">
+        <button class="icon-btn" data-back="menu" aria-label="Back to menu" data-i18n-aria="nav.back">&#8592;</button>
+        <h2 data-i18n="setup.head">Set Up The Round</h2>
+      </div>
+
+      <div class="setup-block">
+        <h3 data-title-key="setup.mode"></h3>
+        <div class="chips" id="modeChips"></div>
+        <p class="hint" id="modeHint"></p>
+      </div>
+
+      <div class="setup-block" id="durationBlock">
+        <h3 data-title-key="setup.clock"></h3>
+        <div class="chips" id="durationChips"></div>
+      </div>
+
+      <div class="setup-block" id="speedBlock">
+        <h3 data-title-key="setup.speed"></h3>
+        <div class="chips" id="speedChips"></div>
+        <p class="hint" id="speedHint"></p>
+      </div>
+
+      <div class="setup-block">
+        <h3 data-title-key="setup.topic"></h3>
+        <div class="chips chips-topics" id="topicChips"></div>
+      </div>
+
+      <div class="setup-block" id="mixBlock">
+        <h3 data-title-key="setup.mix"></h3>
+        <div class="chips" id="mixChips"></div>
+        <p class="hint" id="mixHint"></p>
+      </div>
+
+      <div class="setup-actions">
+        <span class="setup-summary" id="setupSummary"></span>
+        <button class="btn btn-primary btn-wide" id="startBtn"><b data-i18n="setup.start">START GAME</b></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       HOW TO PLAY
+       ============================================================ -->
+  <section class="screen" id="screen-help">
+    <div class="panel">
+      <div class="panel-head">
+        <button class="icon-btn" data-back="menu" aria-label="Back to menu" data-i18n-aria="nav.back">&#8592;</button>
+        <h2 data-i18n="help.head">How To Play</h2>
+      </div>
+
+      <ol class="howto">
+        <li><span class="step">1</span><div><b data-i18n="help.read">READ</b><p data-i18n="help.read.p">A short Physics question sits at the top of the screen.</p></div></li>
+        <li><span class="step">2</span><div><b data-i18n="help.think">THINK</b><p data-i18n="help.think.p">Fruits fly up — each one carries a possible answer.</p></div></li>
+        <li><span class="step">3</span><div><b data-i18n="help.slice">SLICE</b><p data-i18n="help.slice.p">Swipe straight through the correct fruit. A tap works too.</p></div></li>
+        <li><span class="step">4</span><div><b data-i18n="help.streak">STREAK</b><p data-i18n="help.streak.p">Chain correct answers to build a multiplier up to ×2.</p></div></li>
+      </ol>
+
+      <div class="rules">
+        <p><b class="ok" data-i18n="help.correct">✓ Correct</b> <span data-i18n="help.correct.p">Points, a speed bonus, and your streak grows.</span></p>
+        <p><b class="bad" data-i18n="help.wrong">✗ Wrong</b> <span data-i18n="help.wrong.p">Lose 50 points and a life. The correct fruit is revealed.</span></p>
+        <p><b class="warn" data-i18n="help.slow">⏳ Too slow</b> <span data-i18n="help.slow.p">Lose 25 points and your streak. Only Survival takes a life.</span></p>
+        <p><b class="bomb" data-i18n="help.bomb">✖ Bomb</b> <span data-i18n="help.bomb.p">Dark bombs appear later in a round. Never slice them.</span></p>
+      </div>
+
+      <p class="hint centered"><span data-i18n="help.kbd">Keyboard:</span> <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> <span data-i18n="help.kbd.slice">slice fruit left to right.</span> <kbd>Esc</kbd> <span data-i18n="help.kbd.pause">pauses.</span></p>
+
+      <div class="setup-actions">
+        <button class="btn btn-primary btn-wide" data-go="quick"><b data-i18n="help.start">READY? START</b></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       GAME
+       ============================================================ -->
+  <section class="screen screen-game" id="screen-game">
+
+    <header class="hud">
+      <div class="hud-cell">
+        <span class="hud-label" data-i18n="hud.score">SCORE</span>
+        <span class="hud-value" id="hudScore">0</span>
+      </div>
+      <div class="hud-cell hud-combo" id="hudComboCell">
+        <span class="hud-label" data-i18n="hud.streak">STREAK</span>
+        <span class="hud-value" id="hudCombo">&times;1.0</span>
+      </div>
+      <div class="hud-cell hud-lives" id="hudLivesCell">
+        <span class="hud-label" data-i18n="hud.lives">LIVES</span>
+        <span class="hud-value" id="hudLives">&hearts;&hearts;&hearts;</span>
+      </div>
+      <div class="hud-cell hud-clock">
+        <span class="hud-label" id="hudClockLabel" data-i18n="hud.time">TIME</span>
+        <span class="hud-value" id="hudClock">60</span>
+      </div>
+      <div class="hud-cell hud-stage" id="hudStageCell">
+        <span class="hud-label" data-i18n="hud.stage">STAGE</span>
+        <span class="hud-value" id="hudStage">1</span>
+      </div>
+      <div class="hud-tools">
+        <button class="icon-btn" id="soundBtn" title="Sound on or off" aria-label="Sound on or off" data-i18n-title="hud.sound" data-i18n-aria="hud.sound" aria-pressed="true">&#128266;</button>
+        <button class="icon-btn" id="pauseBtn" title="Pause" aria-label="Pause" data-i18n-title="hud.pause" data-i18n-aria="hud.pause">&#10073;&#10073;</button>
+        <button class="icon-btn" id="quitBtn" title="End round" aria-label="End round" data-i18n-title="hud.end" data-i18n-aria="hud.end">&#10005;</button>
+      </div>
+    </header>
+
+    <!-- The question card. Everything here exists to make the question the
+         single loudest thing on screen and to tie it to the fruit below. -->
+    <div class="qbar" id="qbar">
+      <div class="qmeta">
+        <span class="pill" id="qTopic">&nbsp;</span>
+        <span class="pill pill-diff" id="qDiff">&nbsp;</span>
+      </div>
+      <h2 class="qtext" id="qText">&nbsp;</h2>
+      <div class="qtimer"><i id="qTimerFill"></i></div>
+      <div class="qcue" id="qCue"><span data-i18n="q.cue">Slice the correct answer</span></div>
+    </div>
+
+    <div class="stage-wrap">
+      <canvas id="playfield"></canvas>
+
+      <div class="overlay" id="feedback" hidden>
+        <div class="fb-card" id="fbCard">
+          <div class="fb-title" id="fbTitle">&nbsp;</div>
+          <div class="fb-sub" id="fbSub"></div>
+          <div class="fb-why" id="fbWhy"></div>
+          <div class="fb-remember" id="fbRemember">
+            <span class="fb-remember-tag" data-i18n="fb.remember">Remember</span><span id="fbExplain"></span>
+          </div>
+          <!-- Practice Mode: the answer in the language that is NOT on screen. -->
+          <div class="fb-alt" id="fbAlt" hidden>
+            <span class="fb-alt-tag" id="fbAltTag"></span><span class="fb-alt-text" id="fbAltText"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay overlay-count" id="countdown" hidden>
+        <div class="count-text" id="countText">3</div>
+      </div>
+
+      <div class="overlay overlay-pause" id="pauseOverlay" hidden>
+        <div class="panel panel-small">
+          <h2 data-i18n="pause.head">Paused</h2>
+          <div class="setup-actions column">
+            <button class="btn btn-primary btn-wide" id="resumeBtn"><b data-i18n="pause.resume">RESUME</b></button>
+            <button class="btn btn-wide" id="endRoundBtn"><b data-i18n="pause.end">END ROUND</b></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="banner" id="banner" hidden></div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       RESULTS
+       ============================================================ -->
+  <section class="screen" id="screen-results">
+    <div class="panel">
+      <h2 class="results-head" id="resultsHead">&nbsp;</h2>
+      <div class="stars" id="resStars" role="img"></div>
+      <p class="results-msg" id="resultsMsg"></p>
+
+      <div class="score-hero">
+        <span class="score-label" data-i18n="res.score">SCORE</span>
+        <span class="score-value" id="resScore">0</span>
+        <span class="score-best" id="resBest"></span>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat"><span id="resCorrect">0</span><small data-i18n="res.correct">Correct</small></div>
+        <div class="stat"><span id="resAccuracy">0%</span><small data-i18n="res.accuracy">Accuracy</small></div>
+        <div class="stat"><span id="resCombo">&times;0</span><small data-i18n="res.streak">Best streak</small></div>
+        <div class="stat"><span id="resWrong">0</span><small data-i18n="res.wrong">Wrong</small></div>
+        <div class="stat"><span id="resMissed">0</span><small data-i18n="res.slow">Too slow</small></div>
+        <div class="stat"><span id="resReaction">0.0 s</span><small data-i18n="res.reaction">Avg reaction</small></div>
+      </div>
+
+      <!-- The answer to "what do I do now?", directly under the score. -->
+      <section class="next-step" id="nextStep" hidden>
+        <h3 data-i18n="res.nextHead">YOUR NEXT STEP</h3>
+        <p class="next-step-line" id="nextStepLine"></p>
+        <button class="btn btn-focus btn-wide" id="reviseBtn" type="button"><b></b></button>
+      </section>
+
+      <div class="review-grid">
+        <div class="review review-good" id="strongBox" hidden>
+          <h3 data-i18n="res.strong">⭐ Strong</h3>
+          <ul id="strongList"></ul>
+        </div>
+        <div class="review review-weak" id="reviewBox" hidden>
+          <h3 data-i18n="res.revise">📚 Revise</h3>
+          <ul id="reviewList"></ul>
+        </div>
+      </div>
+
+      <div class="setup-actions column">
+        <button class="btn btn-primary btn-wide" id="againBtn"><b data-i18n="res.again">PLAY AGAIN</b></button>
+        <button class="btn btn-wide" id="changeBtn"><b data-i18n="res.change">CHANGE TOPIC OR MODE</b></button>
+        <button class="btn btn-ghost btn-wide" data-back="menu"><b data-i18n="res.menu">MAIN MENU</b></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- One reusable confirmation dialog, shared by Reset Progress and End
+       Round so destructive actions look and behave identically. -->
+  <div class="modal" id="modal" hidden role="dialog" aria-modal="true"
+       aria-labelledby="modalTitle" aria-describedby="modalBody">
+    <div class="modal-card" id="modalCard">
+      <h2 class="modal-title" id="modalTitle">&nbsp;</h2>
+      <p class="modal-body" id="modalBody"></p>
+      <div class="modal-actions">
+        <button class="btn btn-wide" id="modalCancel" type="button"><b data-i18n="dlg.cancel">CANCEL</b></button>
+        <button class="btn btn-wide btn-danger" id="modalConfirm" type="button"><b data-i18n="dlg.confirm">CONFIRM</b></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="snack" id="snack" hidden role="status" aria-live="polite">
+    <b id="snackTitle"></b><span id="snackBody"></span>
+  </div>
+
+  <!-- Screen-reader-only announcements (e.g. "Bahasa Melayu dipilih"). -->
+  <div class="sr-only" id="srAnnounce" aria-live="polite"></div>
+
+</div>
+
+<!-- Order matters: storage before i18n (the saved language), i18n before
+     the dictionaries, the English bank before its translations, and all
+     content before the game modules that read it. Classic scripts, no
+     modules and no fetch, so double-clicking index.html still works. -->
+<script src="js/config.js" charset="utf-8"></script>
+<script src="js/storage.js" charset="utf-8"></script>
+<script src="js/i18n.js" charset="utf-8"></script>
+<script src="lang/en.js" charset="utf-8"></script>
+<script src="lang/ms.js" charset="utf-8"></script>
+<script src="data/question-bank.js" charset="utf-8"></script>
+<script src="data/questions-mechanics.js" charset="utf-8"></script>
+<script src="data/questions-heat-waves.js" charset="utf-8"></script>
+<script src="data/questions-light.js" charset="utf-8"></script>
+<script src="data/ms/mechanics-1.ms.js" charset="utf-8"></script>
+<script src="data/ms/mechanics-2.ms.js" charset="utf-8"></script>
+<script src="data/ms/heat.ms.js" charset="utf-8"></script>
+<script src="data/ms/waves.ms.js" charset="utf-8"></script>
+<script src="data/ms/light.ms.js" charset="utf-8"></script>
+<script src="data/ms/optics.ms.js" charset="utf-8"></script>
+<script src="js/audio.js" charset="utf-8"></script>
+<script src="js/fruits.js" charset="utf-8"></script>
+<script src="js/effects.js" charset="utf-8"></script>
+<script src="js/engine.js" charset="utf-8"></script>
+<script src="js/learner.js" charset="utf-8"></script>
+<script src="js/game.js" charset="utf-8"></script>
+<script src="js/ui.js" charset="utf-8"></script>
+<script src="js/main.js" charset="utf-8"></script>
+</body>
+</html>

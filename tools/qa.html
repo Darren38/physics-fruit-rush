@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Physics Fruit Rush v4 — QA</title>
+<style>
+  :root { --bg:#0b1024; --panel:#141c3a; --line:#2a3666; --text:#eaf1ff; --muted:#9fb0d8; --ok:#56f39a; --bad:#ff6b7d; --warn:#ffc247; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 "Segoe UI", Roboto, Arial, sans-serif; }
+  main { max-width: 1000px; margin: 0 auto; padding: 24px 18px 60px; }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  p.lead { margin: 0 0 20px; color: var(--muted); }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+  section h2 { margin: 0 0 6px; font-size: 15px; display: flex; gap: 10px; align-items: center; }
+  .badge { font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+  .pass { background: rgba(86,243,154,.16); color: var(--ok); }
+  .fail { background: rgba(255,107,125,.16); color: var(--bad); }
+  .info { background: rgba(255,194,71,.14); color: var(--warn); }
+  .detail { color: var(--muted); margin: 0 0 6px; }
+  ul { margin: 6px 0 0; padding-left: 18px; max-height: 320px; overflow: auto; }
+  li { margin: 2px 0; font-family: Consolas, "Courier New", monospace; font-size: 12.5px; overflow-wrap: anywhere; }
+  .tbl { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 6px; }
+  td, th { border-bottom: 1px solid var(--line); padding: 4px 8px; text-align: left; white-space: nowrap; }
+  th { color: var(--muted); font-weight: 700; }
+  #summary { font-size: 16px; font-weight: 800; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Physics Fruit Rush v4 — QA</h1>
+  <p class="lead">Content, translation and layout checks. Open this page after editing any
+    question or interface text. Everything runs offline except the index.html key check,
+    which needs a local web server (<code>python -m http.server</code>).</p>
+  <p id="summary">Running…</p>
+  <div id="out"></div>
+</main>
+
+<script src="../js/config.js" charset="utf-8"></script>
+<script src="../js/storage.js" charset="utf-8"></script>
+<script src="../js/i18n.js" charset="utf-8"></script>
+<script src="../lang/en.js" charset="utf-8"></script>
+<script src="../lang/ms.js" charset="utf-8"></script>
+<script src="../data/question-bank.js" charset="utf-8"></script>
+<script src="../data/questions-mechanics.js" charset="utf-8"></script>
+<script src="../data/questions-heat-waves.js" charset="utf-8"></script>
+<script src="../data/questions-light.js" charset="utf-8"></script>
+<script src="../data/ms/mechanics-1.ms.js" charset="utf-8"></script>
+<script src="../data/ms/mechanics-2.ms.js" charset="utf-8"></script>
+<script src="../data/ms/heat.ms.js" charset="utf-8"></script>
+<script src="../data/ms/waves.ms.js" charset="utf-8"></script>
+<script src="../data/ms/light.ms.js" charset="utf-8"></script>
+<script src="../data/ms/optics.ms.js" charset="utf-8"></script>
+<script src="../js/fruits.js" charset="utf-8"></script>
+<script>
+(function () {
+  'use strict';
+  var PFR = window.PFR, Bank = PFR.Bank, I18N = PFR.I18N, CFG = PFR.CONFIG, Fruits = PFR.Fruits;
+  var out = document.getElementById('out');
+  var results = [];
+
+  function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+
+  function report(title, problems, detail, kind, html) {
+    var ok = !problems.length;
+    var cls = kind === 'info' ? 'info' : (ok ? 'pass' : 'fail');
+    var label = kind === 'info' ? 'INFO' : (ok ? 'PASS' : problems.length + ' PROBLEM' + (problems.length === 1 ? '' : 'S'));
+    results.push({ title: title, ok: kind === 'info' || ok, problems: problems.slice(), detail: detail || '' });
+    var s = document.createElement('section');
+    s.innerHTML = '<h2><span class="badge ' + cls + '">' + label + '</span>' + esc(title) + '</h2>' +
+      (detail ? '<p class="detail">' + detail + '</p>' : '') + (html || '') +
+      (problems.length ? '<ul>' + problems.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ul>' : '');
+    out.appendChild(s);
+  }
+
+  var Q = Bank.build();
+
+  /* 1. English source bank ------------------------------------------ */
+  report('English question bank', Bank.validate(Q), Q.length + ' questions, ' + Bank.groups(Q).length +
+    ' topic groups, ' + Bank.topics(Q).length + ' topics.');
+
+  /* 2. Every translation --------------------------------------------- */
+  Bank.languages().forEach(function (code) {
+    if (code === 'en') return;
+    var cov = Bank.coverage(Q, code);
+    report('Translation: ' + code, Bank.validateLang(Q, code),
+      cov.translated + ' / ' + cov.total + ' questions complete (' + Math.round(100 * cov.translated / cov.total) + '%).');
+  });
+
+  /* 3. The translation validator itself -------------------------------
+        A checker that never fails proves nothing. Break four translations
+        on purpose, in a copy, and confirm each break is reported. */
+  (function () {
+    var bad = Q.map(function (q) { return JSON.parse(JSON.stringify(q)); });
+    function findIdx(test) { for (var i = 0; i < bad.length; i++) if (test(bad[i])) return i; return -1; }
+    var a = findIdx(function (q) { return q.answers[0] === 'p = mv'; });
+    var b = findIdx(function (q) { return q.whyIdx && q.tr.ms && q.tr.ms.whyRaw; });
+    var c = findIdx(function (q, i) { return q.tr.ms && q.id > 10; });
+    var d = findIdx(function (q) { return q.id > 200 && q.tr.ms; });
+    bad[a].tr.ms.answers[0] = 'p = m v';                        // formula altered
+    bad[b].tr.ms.whyRaw = { 'no such option': 'x' };             // why-note on a missing option
+    bad[b].tr.ms.why = null;                                     // ... and the real one lost
+    bad[c].tr.ms.answers = bad[c].tr.ms.answers.slice(0, 3);     // an answer dropped
+    bad[d].tr = {};                                              // not translated at all
+    var probs = Bank.validateLang(bad, 'ms').join('\n');
+    var expect = [
+      ['altered formula', /should stay "p = mv"/],
+      ['why-note on missing option', /why-note for missing option/],
+      ['lost misconception note', /missing the why-note/],
+      ['dropped answer', /3 translated answers, expected 4/],
+      ['untranslated question', /has no translation/]
+    ];
+    var missed = expect.filter(function (e) { return !e[1].test(probs); }).map(function (e) { return 'not detected: ' + e[0]; });
+    report('The translation validator catches deliberate errors', missed,
+      (expect.length - missed.length) + ' of ' + expect.length + ' planted errors reported.');
+  })();
+
+  /* 4. Interface dictionaries ---------------------------------------- */
+  report('Interface text: key and placeholder parity', I18N.audit(),
+    I18N.keys('en').length + ' keys in English, ' + I18N.keys('ms').length + ' in Bahasa Melayu.');
+
+  /* 5. Length comparison (informational) ------------------------------ */
+  (function () {
+    var enQ = 0, msQ = 0, enA = 0, msA = 0, n = 0, longest = [];
+    Q.forEach(function (q) {
+      var e = Bank.view(q, 'en'), m = Bank.view(q, 'ms');
+      enQ += e.question.length; msQ += m.question.length; n++;
+      enA += e.answers.join('').length / e.answers.length;
+      msA += m.answers.join('').length / m.answers.length;
+      longest.push({ t: m.question, n: m.question.length });
+    });
+    longest.sort(function (a, b) { return b.n - a.n; });
+    report('Text length, English vs Bahasa Melayu', [],
+      'Average question: EN ' + (enQ / n).toFixed(1) + ' chars, BM ' + (msQ / n).toFixed(1) +
+      ' (' + (100 * (msQ / enQ - 1)).toFixed(0) + '% longer). Average answer: EN ' + (enA / n).toFixed(1) +
+      ', BM ' + (msA / n).toFixed(1) + '. Longest BM question: ' + longest[0].n + ' chars — “' + esc(longest[0].t) + '”', 'info');
+  })();
+
+  /* 6. Every answer label, through the REAL label fitter -----------------
+        Lanes are computed exactly as engine.spawnWave computes them, for a
+        desktop, a tablet and a portrait phone playfield, with four fruits
+        (the tightest case). A plate wider than its lane would sit on the
+        neighbouring answer, so that must never happen. Words broken in the
+        middle are allowed as a last resort but counted, per language. */
+  (function () {
+    var V = CFG.view;
+    var ctx = document.createElement('canvas').getContext('2d');
+    var sizes = [{ name: 'desktop 1280×572', w: 1280, h: 572 }, { name: 'tablet 768×700', w: 768, h: 700 },
+                 { name: 'phone 375×560', w: 375, h: 560 }];
+    function lane(W, H, n) {
+      var radius = Math.max(V.radiusMin, Math.min(V.radiusMax, Math.min(W * V.radiusMinFrac, H * V.radiusMaxFrac)));
+      var lane0 = (W - radius * 2.10) / n;
+      var r = Math.min(radius, Math.max(V.radiusMin * 0.7, lane0 * 0.47));
+      var margin = r * 1.05;
+      var usable = Math.max(r * 0.6, W - margin * 2);
+      return { r: r, labelW: Math.min(r * 1.95, (usable / n) * 0.94) };
+    }
+    var problems = [], rows = '', splits = [];
+    ['en', 'ms'].forEach(function (code) {
+      sizes.forEach(function (sz) {
+        var L = lane(sz.w, sz.h, 4), n = 0, over = 0, many = 0, split = 0, fontSum = 0, minFont = 99;
+        Q.forEach(function (q) {
+          Bank.view(q, code).answers.forEach(function (a) {
+            var lay = Fruits.labelLayout(ctx, a, L.labelW, L.r);
+            n++; fontSum += lay.size; minFont = Math.min(minFont, lay.size);
+            if (lay.plateW > L.labelW + 0.5) { over++; problems.push(code + ' @ ' + sz.name + ': "' + a + '" plate ' + lay.plateW.toFixed(1) + ' > lane ' + L.labelW.toFixed(1)); }
+            if (lay.lines.length > 3) many++;
+            if (lay.split) { split++; if (sz.w === 375) splits.push(code + ': ' + lay.lines.join(' / ')); }
+          });
+        });
+        rows += '<tr><td>' + code + '</td><td>' + sz.name + '</td><td>' + n + '</td><td>' + over + '</td><td>' + many +
+          '</td><td>' + split + '</td><td>' + (fontSum / n).toFixed(1) + ' px</td><td>' + minFont.toFixed(1) + ' px</td></tr>';
+      });
+    });
+    report('Answer labels fit their lanes (real renderer)', problems,
+      'Four-fruit lanes, every answer in every language. Overflow must be zero; words broken mid-word are a last resort and are listed for the phone size.',
+      null,
+      '<div class="tbl"><table><tr><th>lang</th><th>playfield</th><th>labels</th><th>overflow</th><th>&gt;3 lines</th><th>mid-word breaks</th><th>avg font</th><th>min font</th></tr>' + rows + '</table></div>' +
+      (splits.length ? '<ul>' + splits.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ul>' : ''));
+    window.QA_SPLITS = splits;
+  })();
+
+  /* 7. index.html uses only known keys (needs http://) ---------------- */
+  function domCheck(done) {
+    if (!window.fetch || location.protocol === 'file:') {
+      report('index.html uses only known keys', [], 'Skipped: open this page through a local web server to run it.', 'info');
+      return done();
+    }
+    fetch('../index.html', { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (html) {
+      var re = /data-(?:i18n(?:-aria|-title)?|title-key)="([^"]+)"/g, m, used = {}, problems = [];
+      while ((m = re.exec(html))) used[m[1]] = true;
+      var known = {};
+      I18N.keys('en').forEach(function (k) { known[k] = true; });
+      Object.keys(used).forEach(function (k) { if (!known[k]) problems.push('index.html uses unknown key "' + k + '"'); });
+      report('index.html uses only known keys', problems, Object.keys(used).length + ' distinct keys referenced from markup.');
+      done();
+    }).catch(function (e) { report('index.html uses only known keys', ['could not load index.html: ' + e], ''); done(); });
+  }
+
+  domCheck(function () {
+    var failed = results.filter(function (r) { return !r.ok; });
+    var el = document.getElementById('summary');
+    el.textContent = failed.length ? failed.length + ' check(s) failing' : 'All checks pass';
+    el.style.color = failed.length ? '#ff6b7d' : '#56f39a';
+    window.QA = { results: results, failed: failed.length, questions: Q };
+  });
+})();
+</script>
+</body>
+</html>
