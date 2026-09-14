@@ -1,15 +1,22 @@
 /* =====================================================================
-   PHYSICS FRUIT RUSH v4  --  BOOTSTRAP, INPUT AND MAIN LOOP
+   PHYSICS FRUIT RUSH v5  --  BOOTSTRAP, INPUT AND MAIN LOOP
    ---------------------------------------------------------------------
-   Wires the question bank, learner, engine, game logic and UI together,
-   then runs a single requestAnimationFrame loop.
+   Wires the question bank, the per-Form learners, engine, game logic and
+   UI together, then runs a single requestAnimationFrame loop.
 
-   Input is deliberately forgiving and multi-modal:
-     * mouse drag        (desktop)
-     * finger swipe      (tablet / phone / classroom touch panel)
-     * stylus            (same pointer pipeline)
-     * tap or click      (a straight tap on a fruit counts as a slice)
-     * number keys 1-4   (keyboard players, and teachers on a laptop)
+   v5: THE FORM ON SCREEN
+   `form` is the one Form the student is studying. Everything that
+   touches learning goes through it:
+     * questions   BY_FORM[form].questions - the game is never handed the
+                   whole bank, so it cannot draw a question from another
+                   Form, whatever the topic filter says;
+     * learner     learnerFor(form) - one Learner per Form, each bound to
+                   that Form's own storage scope;
+     * best scores and Reset - Progress.scope(form).
+   The Form can only change on the menu, never during a round.
+
+   Input is deliberately forgiving and multi-modal: mouse drag, finger
+   swipe, stylus, a straight tap, and number keys 1-4.
    ===================================================================== */
 
 (function (global) {
@@ -19,52 +26,110 @@
   var CFG = PFR.CONFIG;
   var Audio = PFR.Audio;
   var I18N = PFR.I18N;
+  var Syllabus = PFR.Syllabus;
+  var Speed = PFR.Speed;
   var t = I18N.t;
 
-  /* "Every topic". Canonical like every other topic id - v3 used the
-     English words 'All Topics' as the key, which cannot survive a
-     translation. */
+  /* "Every topic" - canonical, like every other topic id. */
   var ALL = 'all';
 
   var QUESTIONS = PFR.Bank.build();
-  var GROUPS = PFR.Bank.groups(QUESTIONS);
 
-  /* Fine topic -> the group it belongs to ("Momentum" -> "Momentum &
-     Impulse"), so the setup screen can show which chip a one-topic
-     practice round came from. */
-  var TOPIC_GROUP = {};
-  for (var qi = 0; qi < QUESTIONS.length; qi++) TOPIC_GROUP[QUESTIONS[qi].topic] = QUESTIONS[qi].group;
+  /* Per-Form views of the bank, built once. Groups follow the syllabus
+     order, keeping only groups that actually have questions. */
+  var BY_FORM = {};
+  CFG.forms.forEach(function (f) {
+    var qs = PFR.Bank.forForm(QUESTIONS, f);
+    var present = PFR.Bank.groups(qs);
+    var topicGroup = {};
+    qs.forEach(function (q) { topicGroup[q.topic] = q.group; });
+    BY_FORM[f] = {
+      questions: qs,
+      groups: Syllabus.groups(f).filter(function (g) { return present.indexOf(g) !== -1; }),
+      topicGroup: topicGroup
+    };
+  });
 
-  var canvas, engine, ui, game, learner;
+  var canvas, engine, ui, game;
+  var form = null;          // null until the student has chosen a Form
+  var learners = {};        // Form -> Learner, created on first use
+  var migration = null;
   var lastTime = 0;
 
-  /* ---------------------------------------------------------------
-     Question filtering
-     `group` may be a coarse group ("Waves") or a fine topic name coming
-     from the results screen's "practise my weak topic" button.
-     --------------------------------------------------------------- */
+  function learnerFor(f) {
+    if (!learners[f]) learners[f] = new PFR.Learner(PFR.Progress.scope(f), Syllabus.topics(f));
+    return learners[f];
+  }
+
+  function currentLearner() { return form ? learnerFor(form) : null; }
+
+  /* `group` is a coarse group ("Heat") or a fine topic from a "practise
+     my weak topic" button - always looked up INSIDE the current Form. */
   function questionsFor(group) {
-    if (!group || group === ALL) return QUESTIONS.slice();
-    var out = [];
-    for (var i = 0; i < QUESTIONS.length; i++) {
-      if (QUESTIONS[i].group === group || QUESTIONS[i].topic === group) out.push(QUESTIONS[i]);
-    }
-    return out.length ? out : QUESTIONS.slice();
+    var pool = form ? BY_FORM[form].questions : [];
+    if (!group || group === ALL) return pool.slice();
+    var out = pool.filter(function (q) { return q.group === group || q.topic === group; });
+    return out.length ? out : pool.slice();
+  }
+
+  /* ---------------------------------------------------------------
+     Speed settings - global, never part of progress.
+     --------------------------------------------------------------- */
+  function savedSpeed() {
+    var k = PFR.Settings.get('speed', 'normal');
+    return Speed.isKey(k) ? k : 'normal';
+  }
+
+  function savedCustomPct() {
+    return Speed.clamp(PFR.Settings.get('customSpeed', CFG.customSpeed.def));
+  }
+
+  /* ---------------------------------------------------------------
+     Forms
+     --------------------------------------------------------------- */
+  function formFromUrl() {
+    try {
+      var m = /[?&](?:form|tingkatan)=(\d)/i.exec((global.location && global.location.search) || '');
+      return m ? PFR.Progress.validForm(m[1]) : null;
+    } catch (e) { return null; }
+  }
+
+  function setForm(f, opts) {
+    opts = opts || {};
+    var n = PFR.Progress.validForm(f);
+    if (!n) return false;
+    /* Never under a running round: its questions, learner and best score
+       all belong to the Form it started in. */
+    if (game && game.isRunning()) return false;
+    var changed = n !== form;
+    form = n;
+    if (opts.persist !== false) PFR.Settings.set('form', String(n));
+
+    var F = BY_FORM[n];
+    ui.setForm(n, F.groups, F.topicGroup);
+    ui.setBankInfo(F.questions.length, F.groups.length);
+    ui.showMenuProgress(learnerFor(n));
+    if (changed && opts.announce) ui.announce(t('form.announce', { form: t('form.name', { n: n }) }));
+    return true;
   }
 
   /* ---------------------------------------------------------------
      Starting a round
      --------------------------------------------------------------- */
   function startRound(settings) {
+    if (!form) { ui.nudgeFormPicker(); return; }
     Audio.unlock();
     ui.selection.mode = settings.mode;
     ui.selection.duration = settings.duration;
     ui.selection.group = settings.group;
     if (settings.mix) ui.selection.mix = settings.mix;
-    /* Practice forces its own speed - remembering it would silently change
-       the player's choice for every later round. */
+    /* Practice forces Relaxed - remembering that would silently change
+       the player's own choice for every later round. */
     if (!CFG.modes[settings.mode] || !CFG.modes[settings.mode].forceSpeed) {
       ui.selection.speed = settings.speed;
+      /* A caller may pass its own custom pace; it goes through the same
+         clamp as the slider, so no path can start a round outside it. */
+      if (settings.customPct != null) ui.selection.customPct = PFR.Speed.clamp(settings.customPct);
     }
 
     ui.show('game');
@@ -73,10 +138,13 @@
     game.start({
       mode: settings.mode,
       speed: settings.speed,
+      customPct: ui.selection.customPct,
       duration: settings.duration,
       group: settings.group,
       mix: settings.mix || ui.selection.mix,
       lang: I18N.get(),
+      form: form,
+      learner: learnerFor(form),
       questions: questionsFor(settings.group)
     });
   }
@@ -95,10 +163,8 @@
     return game && game.state === 'play' && !ui.modalOpen();
   }
 
-  /* One blade at a time. On a shared classroom panel a second finger - a
-     resting palm, or another student reaching in - used to overwrite the
-     tracked pointer and silently cancel the swipe already in progress. The
-     first pointer down owns the blade until it lifts. */
+  /* One blade at a time: the first pointer down owns it until it lifts,
+     so a second finger on a shared panel cannot cancel a swipe. */
   function isOtherPointer(e) {
     return pointer.down && pointer.id !== null &&
            e.pointerId !== undefined && e.pointerId !== pointer.id;
@@ -128,26 +194,23 @@
     var dx = p.x - pointer.x, dy = p.y - pointer.y;
     var step = Math.sqrt(dx * dx + dy * dy);
     pointer.dist += step;
-
     engine.addTrailPoint(p.x, p.y);
-
     if (step > 1.2 && slicingAllowed()) {
       var hits = engine.sliceSegment(pointer.x, pointer.y, p.x, p.y);
-      if (hits.length) {
-        Audio.play('swipe');
-        game.onHits(hits);
-      }
+      if (hits.length) { Audio.play('swipe'); game.onHits(hits); }
     }
     pointer.x = p.x; pointer.y = p.y;
     e.preventDefault();
   }
 
   function onUp(e) {
+    /* v5: on iPhone and iPad a finger LIFT counts as the user gesture
+       that may restart sound (a touch-down does not), so try here too. */
+    Audio.unlock();
     if (!pointer.down) return;
-    if (isOtherPointer(e)) return;          // a different finger lifting
+    if (isOtherPointer(e)) return;
     var p = canvasPoint(e);
     var dt = performance.now() - pointer.startT;
-
     /* A short, still press is a tap: still a valid slice. */
     if (pointer.dist <= CFG.input.tapMaxDist && dt <= CFG.input.tapMaxTime && slicingAllowed()) {
       var hits = engine.sliceTap(p.x, p.y);
@@ -158,7 +221,6 @@
         game.onHits(hits);
       }
     }
-
     releasePointer(e);
     if (e.cancelable) e.preventDefault();
   }
@@ -172,9 +234,7 @@
     }
   }
 
-  /* The browser took the gesture away - a palm rejected, a system edge
-     swipe, a pan starting. That is NOT a slice. Going through onUp would
-     run the tap test and answer the question for the student. */
+  /* The browser took the gesture away (palm, edge swipe): NOT a slice. */
   function onCancel(e) {
     if (!pointer.down || isOtherPointer(e)) return;
     releasePointer(e);
@@ -190,36 +250,30 @@
         if (pointer.down && !isOtherPointer(e)) onUp(e);
       }, { passive: false });
     } else {
-      /* Very old browsers: mouse + touch fallback. */
       canvas.addEventListener('mousedown', onDown);
       canvas.addEventListener('mousemove', onMove);
       global.addEventListener('mouseup', onUp);
       canvas.addEventListener('touchstart', function (e) {
-        var t = e.changedTouches[0];
-        onDown({ clientX: t.clientX, clientY: t.clientY, preventDefault: function () { e.preventDefault(); } });
+        var tt = e.changedTouches[0];
+        onDown({ clientX: tt.clientX, clientY: tt.clientY, preventDefault: function () { e.preventDefault(); } });
       }, { passive: false });
       canvas.addEventListener('touchmove', function (e) {
-        var t = e.changedTouches[0];
-        onMove({ clientX: t.clientX, clientY: t.clientY, preventDefault: function () { e.preventDefault(); } });
+        var tt = e.changedTouches[0];
+        onMove({ clientX: tt.clientX, clientY: tt.clientY, preventDefault: function () { e.preventDefault(); } });
       }, { passive: false });
       canvas.addEventListener('touchend', function (e) {
-        var t = e.changedTouches[0];
-        onUp({ clientX: t.clientX, clientY: t.clientY, cancelable: e.cancelable, preventDefault: function () { e.preventDefault(); } });
+        var tt = e.changedTouches[0];
+        onUp({ clientX: tt.clientX, clientY: tt.clientY, cancelable: e.cancelable, preventDefault: function () { e.preventDefault(); } });
       }, { passive: false });
     }
 
-    /* Stop the page bouncing while a finger is on the playfield. */
     document.addEventListener('touchmove', function (e) {
       if (ui.current === 'game' && e.target === canvas) e.preventDefault();
     }, { passive: false });
 
     document.addEventListener('keydown', function (e) {
       Audio.unlock();
-
-      /* A dialog owns Escape while it is open - it handles the key itself,
-         so the game must not also pause or unpause underneath it. */
-      if (ui.modalOpen()) return;
-
+      if (ui.modalOpen()) return;          // a dialog owns Escape
       if (e.key === 'Escape') {
         if (ui.current === 'game' && game.isRunning()) {
           if (game.state === 'paused') game.resume(); else game.pause();
@@ -227,33 +281,25 @@
         }
         return;
       }
-
       if (ui.current !== 'game') return;
-
       if (e.key >= '1' && e.key <= '4' && slicingAllowed()) {
         var hits = engine.sliceIndex(parseInt(e.key, 10) - 1);
-        if (hits.length) {
-          Audio.play('swipe');
-          game.onHits(hits);
-        }
+        if (hits.length) { Audio.play('swipe'); game.onHits(hits); }
         e.preventDefault();
       }
     });
   }
 
   /* ---------------------------------------------------------------
-     Main loop
-     The engine owns the freeze-frame, so it reports how much time the
-     WORLD actually advanced. Feeding that same value to the game clock
-     keeps the question timer honest during hit-stop.
+     Main loop. The engine owns the freeze-frame and reports how much
+     time the WORLD advanced; the game clock gets that same value.
      --------------------------------------------------------------- */
   function frame(now) {
     requestAnimationFrame(frame);
     var dt = (now - lastTime) / 1000;
     lastTime = now;
     if (!(dt > 0)) dt = 0.016;
-    if (dt > 0.05) dt = 0.05;          // survive tab switches and slow frames
-
+    if (dt > 0.05) dt = 0.05;
     if (ui.current === 'game') {
       if (game.state !== 'paused') {
         var worldDt = engine.update(dt);
@@ -266,15 +312,20 @@
   /* ---------------------------------------------------------------
      Wiring
      --------------------------------------------------------------- */
+  function formName(n) { return t('form.name', { n: n }); }
+
   function bindButtons() {
     document.addEventListener('click', function (e) {
       var goEl = e.target.closest ? e.target.closest('[data-go]') : null;
       if (goEl) {
         Audio.unlock();
         Audio.play('click');
+        if (!form) { ui.nudgeFormPicker(); return; }
         var go = goEl.dataset.go;
         if (go === 'quick') {
-          startRound({ mode: 'quick', speed: 'normal', duration: CFG.modes.quick.duration, group: ALL });
+          /* v5: Quick Game plays at the student's saved speed - a student
+             who chose a gentler pace should not have it ignored here. */
+          startRound({ mode: 'quick', speed: ui.selection.speed, duration: CFG.modes.quick.duration, group: ALL });
         } else if (go === 'topic') {
           ui.openSetup({ mode: 'topic' });
         } else if (go === 'practice') {
@@ -291,7 +342,7 @@
       if (backEl) {
         Audio.play('click');
         if (game.isRunning()) game.quit();
-        ui.showMenuProgress(learner);
+        ui.showMenuProgress(currentLearner());
         ui.show(backEl.dataset.back);
       }
     });
@@ -308,14 +359,12 @@
       if (game.state === 'paused') game.resume(); else game.pause();
     });
 
-    /* End Round asks first. On a projector or a shared touchscreen the X
-       sits next to pause and sound, and a mis-tap used to throw away a
-       whole round with no way back. */
+    /* End Round asks first - the X sits next to pause on a shared panel. */
     document.getElementById('quitBtn').addEventListener('click', function () {
       Audio.play('click');
       if (!game.isRunning()) return;
       var wasPlaying = game.state !== 'paused';
-      if (wasPlaying) game.pause();          // freeze the clock while deciding
+      if (wasPlaying) game.pause();
       ui.confirm({
         title: t('dlg.end.title'),
         body: t('dlg.end.body'),
@@ -326,32 +375,29 @@
       });
     });
 
-    /* Reset Progress - the only destructive action outside a round. */
+    /* Reset THIS Form's progress. Other Forms and every setting stay. */
     document.getElementById('resetProgressBtn').addEventListener('click', function () {
       Audio.play('click');
+      if (!form) return;
+      var f = form, name = formName(f);
       ui.confirm({
-        title: t('dlg.reset.title'),
-        body: t('dlg.reset.body'),
+        title: t('dlg.reset.title', { form: name }),
+        body: t('dlg.reset.body', { form: name }),
         cancelLabel: t('dlg.cancel'),
         confirmLabel: t('dlg.reset.confirm'),
         onConfirm: function () {
-          PFR.Progress.resetAll(learner);
-          ui.showMenuProgress(learner);
-          ui.snack(t('snack.reset.title'), t('snack.reset.body'));
+          PFR.Progress.scope(f).reset(learnerFor(f));
+          ui.showMenuProgress(learnerFor(f));
+          ui.snack(t('snack.reset.title', { form: name }), t('snack.reset.body'));
           Audio.play('reset');
         }
       });
     });
 
-    /* Straight from the menu into the topic the model says is weakest. */
     document.getElementById('practiseWeakBtn').addEventListener('click', function () {
       Audio.play('click');
-      var topic = ui.weakTopic;
-      if (!topic) return;
-      startRound({
-        mode: 'practice', speed: 'relaxed', duration: 0,
-        group: topic, mix: ui.selection.mix
-      });
+      if (!ui.weakTopic) return;
+      startRound({ mode: 'practice', speed: 'relaxed', duration: 0, group: ui.weakTopic, mix: ui.selection.mix });
     });
 
     document.getElementById('resumeBtn').addEventListener('click', function () {
@@ -370,7 +416,6 @@
       startRound(ui.currentSettings());
     });
 
-    /* Straight from "you are weak at X" into practising X. */
     document.getElementById('reviseBtn').addEventListener('click', function () {
       Audio.play('click');
       if (!ui.reviseTopic) return;
@@ -395,12 +440,17 @@
     document.addEventListener('visibilitychange', function () {
       if (document.hidden && game && game.isRunning() && game.state !== 'paused') game.pause();
     });
-    /* Persist what the student has learned if they close the tab mid-round. */
-    global.addEventListener('pagehide', function () { if (learner) learner.save(); });
+    /* Persist a Form's learner if the tab closes mid-round - but only one
+       this tab actually changed. Saving every loaded learner let an idle
+       second tab overwrite newer progress another tab had saved. */
+    global.addEventListener('pagehide', function () {
+      for (var f in learners) {
+        if (Object.prototype.hasOwnProperty.call(learners, f) && learners[f].dirty) learners[f].save();
+      }
+    });
   }
 
-  /* Numbers quoted inside interface sentences, read from config so the
-     words always describe the rules actually in force. */
+  /* Numbers quoted inside interface sentences, read from config. */
   function configGlobals() {
     var M = CFG.modes, S = CFG.score;
     var maxMult = 1 + S.comboCap * S.comboStep;
@@ -409,7 +459,8 @@
       rushSecs: M.timerush.duration, rushBonus: M.timerush.timeBonus,
       survLives: M.survival.lives, topicQs: M.topic.questionLimit,
       wrongPenalty: S.wrongPenalty, missPenalty: S.missPenalty,
-      maxMult: String(Math.round(maxMult * 10) / 10)
+      maxMult: String(Math.round(maxMult * 10) / 10),
+      speedMin: CFG.customSpeed.min, speedMax: CFG.customSpeed.max
     };
   }
 
@@ -417,47 +468,55 @@
      Go
      --------------------------------------------------------------- */
   function init() {
-    /* Language first, so the very first paint is already in the right one
-       and a BM student never sees a flash of English. */
+    /* Migration first: it may supply the language, sound, mix and Form
+       a returning Version 4 student already chose. It only ever copies. */
+    migration = PFR.Migration.run(Syllabus.topics(4));
+
     I18N.setGlobals(configGlobals());
     var langStart = I18N.init();
 
     canvas = document.getElementById('playfield');
     engine = new PFR.Engine(canvas);
     ui = new PFR.UI();
-    learner = new PFR.Learner();
-    game = new PFR.Game(engine, ui, learner);
+    game = new PFR.Game(engine, ui, null);
 
-    /* A teacher's Adaptive/Balanced choice should stick between rounds. */
     var savedMix = PFR.Settings.get('mix', CFG.adaptive.defaultMix);
     ui.selection.mix = (savedMix === 'balanced') ? 'balanced' : 'adaptive';
-
-    /* Sound is a setting too: a teacher who mutes the projector once
-       should not have to do it again every lesson. */
+    ui.selection.speed = savedSpeed();
+    ui.selection.customPct = savedCustomPct();
     if (PFR.Settings.get('sound', 'on') === 'off') Audio.setEnabled(false);
 
-    ui.buildSetup(GROUPS, startRound, TOPIC_GROUP);
+    ui.buildSetup(startRound);
     ui.setSoundButton(Audio.isEnabled());
-    ui.setBankInfo(QUESTIONS.length, GROUPS.length);
-    ui.showMenuProgress(learner);
     ui.syncLangSwitch();
 
-    /* The switch lives on the menu and never inside a round; see game.js
-       for why a round keeps the language it started in. */
     ui.bindLangSwitch(function (code) {
       if (game.isRunning()) return;
       Audio.unlock();
       Audio.play('click');
       I18N.set(code);
     });
-    I18N.onChange(function () { ui.relocalize(learner); });
+    I18N.onChange(function () { ui.relocalize(currentLearner()); });
+
+    ui.bindFormPicker(function (n) {
+      if (game.isRunning()) return;
+      Audio.unlock();
+      Audio.play('click');
+      setForm(n, { announce: true });
+    });
+
+    /* Which Form: a teacher's ?form=2 link, else the saved choice. With
+       neither, the menu asks - the game never guesses a Form for you. */
+    var urlForm = formFromUrl();
+    var startForm = urlForm || PFR.Settings.form();
+    if (startForm) setForm(startForm, { persist: !!urlForm });
+    else ui.showFormChooser();
 
     bindButtons();
     bindInput();
     bindWindow();
 
-    /* Self-check of the English bank, every translation and the interface
-       dictionaries. Silent when everything is clean. */
+    /* Self-check: bank, Form relationships, translations, interface. */
     var problems = PFR.Bank.validate(QUESTIONS);
     PFR.Bank.languages().forEach(function (code) {
       if (code !== 'en') problems = problems.concat(PFR.Bank.validateLang(QUESTIONS, code));
@@ -469,24 +528,22 @@
     } else {
       var cov = PFR.Bank.coverage(QUESTIONS, 'ms');
       console.log('[Physics Fruit Rush v' + CFG.version + '] Bank OK: ' +
-        QUESTIONS.length + ' questions, ' + GROUPS.length + ' groups, BM ' +
-        cov.translated + '/' + cov.total + '. Language: ' + langStart.lang +
-        ' (' + langStart.source + ').');
+        CFG.forms.map(function (f) { return 'F' + f + ' ' + BY_FORM[f].questions.length; }).join(', ') +
+        ' | BM ' + cov.translated + '/' + cov.total + ' | language ' + langStart.lang + ' (' + langStart.source + ')' +
+        ' | form ' + (form || 'not chosen yet') + ' | V4 migration: ' + (migration.ran ? 'done' : migration.reason) + '.');
     }
 
-    /* Exposed for classroom debugging and for the automated test harness. */
+    /* Exposed for classroom debugging and the automated test harness. */
     global.PFR.debug = {
-      questions: QUESTIONS, groups: GROUPS,
-      engine: engine, game: game, ui: ui, learner: learner,
-      storage: PFR.Storage, progress: PFR.Progress, settings: PFR.Settings,
-      i18n: I18N, startRound: startRound,
+      questions: QUESTIONS, byForm: BY_FORM,
+      engine: engine, game: game, ui: ui,
+      form: function () { return form; },
+      setForm: setForm, learnerFor: learnerFor, learners: learners,
+      questionsFor: questionsFor, startRound: startRound,
+      storage: PFR.Storage, progress: PFR.Progress, settings: PFR.Settings, i18n: I18N,
+      migration: function () { return migration; },
       validate: function () { return PFR.Bank.validate(QUESTIONS); },
-      validateLang: function (code) { return PFR.Bank.validateLang(QUESTIONS, code || 'ms'); },
-      resetProgress: function () {
-        var r = PFR.Progress.resetAll(learner);
-        ui.showMenuProgress(learner);
-        return r;
-      }
+      validateLang: function (code) { return PFR.Bank.validateLang(QUESTIONS, code || 'ms'); }
     };
 
     lastTime = performance.now();

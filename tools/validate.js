@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* =====================================================================
-   Physics Fruit Rush - headless content validator
+   Physics Fruit Rush v5 - headless content validator
    ---------------------------------------------------------------------
    The same checks the game runs in the browser on every page load, but
    runnable from a terminal and from CI, so a bad question or a broken
@@ -11,12 +11,19 @@
    Exits 0 when everything is clean, 1 when it is not. No dependencies.
 
    What it checks
-     * the English question bank
-     * every translation (data/<lang>/): complete, same answer order,
-       same numbers, same formulae, same misconception notes
+     * every Form's question bank against data/syllabus.js: a real Form,
+       a topic from THAT Form, exactly four answers, unique ids
+     * every translation (the ms-N.js files in each data/formN folder,
+       and data/ms): complete, filed under the right Form, same answer
+       order, same numbers, same formulae, same misconception notes
      * the interface dictionaries (lang/*.js): same keys and placeholders
      * that index.html loads every content file, in a working order
      * that nothing calls localStorage.clear()
+
+   v5: the syllabus loads BEFORE the question bank, because the bank
+   checks every question against it. Version 4's load-order rule ("every
+   data/ file after question-bank.js") would reject that and block the
+   deploy, so the rule now expects the syllabus first.
 
    The content files are plain browser scripts that attach themselves to
    `window`, so they run here inside a tiny fake window in a VM context -
@@ -41,8 +48,8 @@ function scriptsInIndex() {
   return out;
 }
 
-/* Content = the language engine, the dictionaries and the question data.
-   The game modules need a DOM and are not loaded here. */
+/* Content = the language engine, the dictionaries, the syllabus and the
+   question data. The game modules need a DOM and are not loaded here. */
 function isContent(src) {
   return src === 'js/i18n.js' || src.indexOf('lang/') === 0 || src.indexOf('data/') === 0;
 }
@@ -57,7 +64,8 @@ function loadContent() {
     if (!fs.existsSync(file)) throw new Error('index.html loads a missing file: ' + rel);
     vm.runInContext(fs.readFileSync(file, 'utf8'), sandbox, { filename: rel });
   }
-  if (!sandbox.PFR || !sandbox.PFR.Bank) throw new Error('content loaded but PFR.Bank was never defined');
+  if (!sandbox.PFR || !sandbox.PFR.Syllabus) throw new Error('content loaded but PFR.Syllabus was never defined');
+  if (!sandbox.PFR.Bank) throw new Error('content loaded but PFR.Bank was never defined');
   if (!sandbox.PFR.I18N) throw new Error('content loaded but PFR.I18N was never defined');
   return sandbox.PFR;
 }
@@ -133,8 +141,9 @@ function checkScriptOrder() {
   before('js/config.js', ['js/storage.js'], 'storage reads the namespace from config');
   before('js/storage.js', ['js/learner.js', 'js/game.js', 'js/ui.js', 'js/main.js'], 'they persist through storage');
   before('js/i18n.js', order.filter((s) => s.indexOf('lang/') === 0), 'dictionaries register with i18n');
-  before('data/question-bank.js', order.filter((s) => s.indexOf('data/') === 0 && s !== 'data/question-bank.js'),
-    'question files register with the bank');
+  before('data/syllabus.js', ['data/question-bank.js'], 'the bank checks every question against the syllabus');
+  before('data/question-bank.js', order.filter((s) => s.indexOf('data/') === 0 &&
+    s !== 'data/question-bank.js' && s !== 'data/syllabus.js'), 'question files register with the bank');
   return problems;
 }
 
@@ -178,8 +187,10 @@ function main() {
     .concat(checkUnreferenced());
 
   const summary = Bank.summary(questions);
+  const forms = Object.keys(summary.byForm || {});
   console.log('Physics Fruit Rush - content');
-  console.log('  questions           ' + summary.total);
+  console.log('  questions           ' + summary.total +
+    (forms.length ? '  (' + forms.map((f) => 'Form ' + f + ': ' + summary.byForm[f]).join(', ') + ')' : ''));
   console.log('  topic groups        ' + Object.keys(summary.byGroup).length);
   console.log('  fine topics         ' + Object.keys(summary.byTopic).length);
   console.log('  easy / med / hard   ' + summary.byDifficulty.easy + ' / ' +
@@ -192,7 +203,8 @@ function main() {
   console.log('  interface keys      ' + I18N.keys('en').length + ' per language');
 
   /* A topic group smaller than the Topic Challenge length is not an error,
-     but it does mean that mode will shorten itself, so it is worth saying. */
+     but it does mean that mode will shorten itself, so it is worth saying.
+     Groups are counted per Form ("F2 Heat"), never across Forms. */
   const thin = Object.keys(summary.byGroup).filter((g) => summary.byGroup[g] < 20);
   if (thin.length) {
     console.log('');

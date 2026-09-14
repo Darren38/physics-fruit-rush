@@ -117,4 +117,4 @@
     'A planet has r = 9 times Earth’s. Its period?': ['Planet mempunyai r = 9 kali r Bumi. Tempohnya?', ['27 tahun', '9 tahun', '81 tahun', '3 tahun'], 'T = √(9³) = √729 = 27 tahun.']
   });
 
-})(window.PFR.Bank.lang('ms'));
+})(window.PFR.Bank.lang('ms', 4));

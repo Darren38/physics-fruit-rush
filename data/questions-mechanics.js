@@ -202,4 +202,4 @@
     ['h', 'A planet has r = 9 times Earth’s. Its period?', ['27 years', '9 years', '81 years', '3 years'], 'T = √(9³) = √729 = 27 years.']
   ]);
 
-})(window.PFR.Bank.G);
+})(window.PFR.Bank.form(4));

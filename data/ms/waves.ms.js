@@ -89,4 +89,4 @@
     'Which diffracts most through a doorway?': ['Yang manakah paling banyak terbelau melalui pintu?', ['Bunyi', 'Cahaya nampak', 'Sinar-X', 'Sinar gama'], 'Panjang gelombang bunyi kira-kira satu meter.']
   });
 
-})(window.PFR.Bank.lang('ms'));
+})(window.PFR.Bank.lang('ms', 4));

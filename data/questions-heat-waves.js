@@ -168,4 +168,4 @@
     ['m', 'Which diffracts most through a doorway?', ['Sound', 'Visible light', 'X-rays', 'Gamma rays'], 'Sound wavelengths are about a metre.']
   ]);
 
-})(window.PFR.Bank.G);
+})(window.PFR.Bank.form(4));

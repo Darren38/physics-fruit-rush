@@ -92,4 +92,4 @@
     'A gas at 4 atm is compressed from 6 L to 3 L. New pressure?': ['Gas pada 4 atm dimampatkan dari 6 L ke 3 L. Tekanan baharu?', ['8 atm', '2 atm', '4 atm', '12 atm'], 'P₁V₁ = P₂V₂ → 24 = P₂ × 3 → 8 atm.']
   });
 
-})(window.PFR.Bank.lang('ms'));
+})(window.PFR.Bank.lang('ms', 4));

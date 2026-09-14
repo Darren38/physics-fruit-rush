@@ -102,4 +102,4 @@
     'Object falls for 1 s from rest (g = 10). Distance?': ['Objek jatuh dari pegun selama 1 s (g = 10). Jarak?', ['5 m', '10 m', '20 m', '1 m'], 'h = ½ × 10 × 1² = 5 m.']
   });
 
-})(window.PFR.Bank.lang('ms'));
+})(window.PFR.Bank.lang('ms', 4));

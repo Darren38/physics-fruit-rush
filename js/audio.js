@@ -37,7 +37,10 @@
      first click / touch / keypress. */
   function unlock() {
     var c = ensure();
-    if (c && c.state === 'suspended') { try { c.resume(); } catch (e) {} }
+    /* v5: iOS reports 'interrupted' (not 'suspended') after a phone call,
+       the lock screen or a switch to another app - resume that too, or
+       the rest of the lesson stays silent. */
+    if (c && c.state !== 'running' && c.state !== 'closed') { try { c.resume(); } catch (e) {} }
   }
 
   function now() { return ctx ? ctx.currentTime : 0; }

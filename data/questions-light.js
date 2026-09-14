@@ -151,4 +151,4 @@
     ['h', 'fo = 90 cm, fe = 6 cm. Length in normal adjustment?', ['96 cm', '84 cm', '15 cm', '540 cm'], 'Length = fo + fe = 90 + 6 = 96 cm.']
   ]);
 
-})(window.PFR.Bank.G);
+})(window.PFR.Bank.form(4));

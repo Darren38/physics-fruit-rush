@@ -158,8 +158,19 @@
   Engine.prototype.spawnWave = function (opts) {
     this.fruits.length = 0;
 
-    var answers = opts.answers.slice();
-    var preset = opts.preset;
+    var answers = (opts.answers || []).slice();
+
+    /* v5: the last line of defence for custom speed. Whatever reaches the
+       engine, the physics only ever sees finite values inside the same
+       bounds the game uses. A NaN here would put every fruit at NaN and
+       leave the question impossible to answer without any error. */
+    var win = Number(opts.window);
+    win = (isFinite(win) && win > 0) ? clamp(win, CFG.minWindow, CFG.maxWindow) : CFG.minWindow;
+    var p = opts.preset || CFG.speeds.normal, N = CFG.speeds.normal;
+    var preset = {
+      drift: isFinite(p.drift) ? clamp(p.drift, 0, 120) : N.drift,
+      spin: isFinite(p.spin) ? clamp(p.spin, 0, 3) : N.spin
+    };
     var n = answers.length;
     var W = this.W, H = this.H;
 
@@ -192,7 +203,7 @@
     for (var k = 0; k < n; k++) {
       var isCorrect = (answers[k].key === opts.correctKey);
       /* Same airtime distribution for every answer - see config.flight. */
-      var T = opts.window * rand(CFG.flight.airtimeMin, CFG.flight.airtimeMax);
+      var T = win * rand(CFG.flight.airtimeMin, CFG.flight.airtimeMax);
       var apex = H * rand(CFG.flight.apexMin, CFG.flight.apexMax);
       var g = (8 * apex) / (T * T);
       var v0 = (g * T) / 2;
@@ -233,7 +244,7 @@
     var nb = opts.bombs || 0;
     for (var b = 0; b < nb; b++) {
       var bandW = W / Math.max(1, nb);
-      var Tb = opts.window * rand(0.72, 0.92);
+      var Tb = win * rand(0.72, 0.92);
       var apexB = H * rand(0.46, 0.66);
       var gb = (8 * apexB) / (Tb * Tb);
       this.fruits.push({

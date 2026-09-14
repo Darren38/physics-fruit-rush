@@ -1,5 +1,5 @@
 /* =====================================================================
-   PHYSICS FRUIT RUSH v4  --  ENGLISH INTERFACE TEXT
+   PHYSICS FRUIT RUSH v5  --  ENGLISH INTERFACE TEXT
    ---------------------------------------------------------------------
    Every word of the interface. Question text lives in data/, not here.
 
@@ -19,8 +19,32 @@ window.PFR.I18N.register('en', {
   /* ---- language switch ---- */
   'lang.announce': 'English selected',
 
+  /* ---- v5: Forms ---- */
+  'form.name': 'Form {n}',
+  'form.short': 'Form {n}',
+  'form.word': 'FORM',
+  'form.choose': 'Choose your Form',
+  'form.note': 'Each Form keeps its own progress.',
+  'form.announce': '{form} selected',
+
+  /* ---- v5: speed and More settings ---- */
+  'menu.speedTag': 'Speed: {speed}',
+  'setup.more': 'More settings',
+  'speed.customPct': 'Custom {pct}%',
+  'speed.custom.blurb': 'Your own pace: {pct}% of Normal, about {secs} s for an easy question.',
+  'custom.head': 'Custom Fruit Speed',
+  'custom.lead': 'Fine-tune how fast the fruit fly. Moving the slider selects Custom.',
+  'custom.slower': 'Slower',
+  'custom.faster': 'Faster',
+  'custom.value': '{pct}% of Normal',
+  'custom.think': 'About {secs} s to answer an easy question',
+  'custom.valuetext': '{name}: {pct} percent of Normal speed, about {secs} seconds for an easy question',
+  'custom.reset': 'Back to Normal',
+  'custom.tag': 'Custom',
+  'progress.headForm': '{form} PROGRESS',
+
   /* ---- main menu ---- */
-  'menu.subtitle': 'KSSM FORM 4 PHYSICS',
+  'menu.subtitle': 'KSSM PHYSICS',
   'menu.tag1': 'Think Fast.',
   'menu.tag2': 'Slice Faster.',
   'menu.quick': 'QUICK GAME',
@@ -40,7 +64,7 @@ window.PFR.I18N.register('en', {
 
   /* ---- progress panel ---- */
   'progress.head': 'YOUR PROGRESS',
-  'progress.empty': 'Play a few questions to start building your progress.',
+  'progress.empty': 'Play a few questions to start building your progress in this Form.',
   'progress.mastery': 'Overall mastery',
   'progress.answered': 'Answered',
   'progress.strongest': 'Strongest',
@@ -49,7 +73,7 @@ window.PFR.I18N.register('en', {
   'progress.keepPlaying': 'Keep playing',
   'progress.practiseWeak': 'PRACTISE WEAK TOPICS',
   'progress.startWith': 'Start with {topic}',
-  'progress.reset': 'Reset progress',
+  'progress.reset': 'Reset this Form’s progress',
 
   /* ---- setup ---- */
   'setup.head': 'Set Up The Round',
@@ -206,9 +230,9 @@ window.PFR.I18N.register('en', {
   'dlg.end.body': 'Your round will end now and your results will be shown.',
   'dlg.end.cancel': 'CONTINUE PLAYING',
   'dlg.end.confirm': 'END ROUND',
-  'dlg.reset.title': 'Reset all progress?',
-  'dlg.reset.body': 'This erases your mastery, question history and best scores on this device. Your settings, such as language and sound, are kept. It cannot be undone.',
+  'dlg.reset.title': 'Reset {form} progress?',
+  'dlg.reset.body': 'This erases your {form} mastery, question history and best scores on this device. Other Forms and your settings, such as language and speed, are kept. It cannot be undone.',
   'dlg.reset.confirm': 'RESET PROGRESS',
-  'snack.reset.title': 'Progress reset',
+  'snack.reset.title': '{form} progress reset',
   'snack.reset.body': 'You are starting fresh.'
 });

@@ -82,4 +82,4 @@
     'fo = 90 cm, fe = 6 cm. Length in normal adjustment?': ['fo = 90 cm, fe = 6 cm. Panjang dalam pelarasan normal?', ['96 cm', '84 cm', '15 cm', '540 cm'], 'Panjang = fo + fe = 90 + 6 = 96 cm.']
   });
 
-})(window.PFR.Bank.lang('ms'));
+})(window.PFR.Bank.lang('ms', 4));

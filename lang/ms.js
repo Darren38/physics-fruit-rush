@@ -1,5 +1,5 @@
 /* =====================================================================
-   PHYSICS FRUIT RUSH v4  --  TEKS ANTARA MUKA BAHASA MELAYU
+   PHYSICS FRUIT RUSH v5  --  TEKS ANTARA MUKA BAHASA MELAYU
    ---------------------------------------------------------------------
    Setiap perkataan antara muka. Teks soalan berada dalam data/ms/.
 
@@ -19,8 +19,32 @@ window.PFR.I18N.register('ms', {
   /* ---- penukar bahasa ---- */
   'lang.announce': 'Bahasa Melayu dipilih',
 
+  /* ---- v5: Tingkatan ---- */
+  'form.name': 'Tingkatan {n}',
+  'form.short': 'Tingkatan {n}',
+  'form.word': 'TINGKATAN',
+  'form.choose': 'Pilih Tingkatan anda',
+  'form.note': 'Setiap Tingkatan menyimpan kemajuannya sendiri.',
+  'form.announce': '{form} dipilih',
+
+  /* ---- v5: kelajuan dan Tetapan lanjut ---- */
+  'menu.speedTag': 'Kelajuan: {speed}',
+  'setup.more': 'Tetapan lanjut',
+  'speed.customPct': 'Tersuai {pct}%',
+  'speed.custom.blurb': 'Rentak anda sendiri: {pct}% daripada Biasa, kira-kira {secs} s untuk soalan mudah.',
+  'custom.head': 'Kelajuan Buah Tersuai',
+  'custom.lead': 'Laraskan kelajuan buah. Menggerakkan gelangsar akan memilih Tersuai.',
+  'custom.slower': 'Lebih perlahan',
+  'custom.faster': 'Lebih laju',
+  'custom.value': '{pct}% daripada Biasa',
+  'custom.think': 'Kira-kira {secs} s untuk menjawab soalan mudah',
+  'custom.valuetext': '{name}: {pct} peratus daripada kelajuan Biasa, kira-kira {secs} saat untuk soalan mudah',
+  'custom.reset': 'Kembali ke Biasa',
+  'custom.tag': 'Tersuai',
+  'progress.headForm': 'KEMAJUAN {form}',
+
   /* ---- menu utama ---- */
-  'menu.subtitle': 'FIZIK TINGKATAN 4 KSSM',
+  'menu.subtitle': 'FIZIK KSSM',
   'menu.tag1': 'Fikir Pantas.',
   'menu.tag2': 'Tebas Lebih Pantas.',
   'menu.quick': 'MAIN CEPAT',
@@ -40,7 +64,7 @@ window.PFR.I18N.register('ms', {
 
   /* ---- panel kemajuan ---- */
   'progress.head': 'KEMAJUAN ANDA',
-  'progress.empty': 'Jawab beberapa soalan untuk mula membina kemajuan anda.',
+  'progress.empty': 'Jawab beberapa soalan untuk mula membina kemajuan anda dalam Tingkatan ini.',
   'progress.mastery': 'Penguasaan keseluruhan',
   'progress.answered': 'Dijawab',
   'progress.strongest': 'Paling kuat',
@@ -49,7 +73,7 @@ window.PFR.I18N.register('ms', {
   'progress.keepPlaying': 'Teruskan bermain',
   'progress.practiseWeak': 'LATIH TOPIK LEMAH',
   'progress.startWith': 'Mulakan dengan {topic}',
-  'progress.reset': 'Tetapkan semula kemajuan',
+  'progress.reset': 'Tetapkan semula kemajuan Tingkatan ini',
 
   /* ---- persediaan ---- */
   'setup.head': 'Sediakan Pusingan',
@@ -203,9 +227,9 @@ window.PFR.I18N.register('ms', {
   'dlg.end.body': 'Pusingan anda akan tamat sekarang dan keputusannya akan dipaparkan.',
   'dlg.end.cancel': 'TERUSKAN BERMAIN',
   'dlg.end.confirm': 'TAMATKAN PUSINGAN',
-  'dlg.reset.title': 'Tetapkan semula semua kemajuan?',
-  'dlg.reset.body': 'Ini akan memadam penguasaan, sejarah soalan dan markah terbaik anda pada peranti ini. Tetapan anda, seperti bahasa dan bunyi, dikekalkan. Tindakan ini tidak boleh dibatalkan.',
+  'dlg.reset.title': 'Tetapkan semula kemajuan {form}?',
+  'dlg.reset.body': 'Ini akan memadam penguasaan, sejarah soalan dan markah terbaik {form} anda pada peranti ini. Tingkatan lain dan tetapan anda, seperti bahasa dan kelajuan, dikekalkan. Tindakan ini tidak boleh dibatalkan.',
   'dlg.reset.confirm': 'TETAPKAN SEMULA',
-  'snack.reset.title': 'Kemajuan ditetapkan semula',
+  'snack.reset.title': 'Kemajuan {form} ditetapkan semula',
   'snack.reset.body': 'Anda bermula dari awal.'
 });

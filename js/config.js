@@ -1,5 +1,5 @@
 /* =====================================================================
-   PHYSICS FRUIT RUSH v4  --  CONFIGURATION
+   PHYSICS FRUIT RUSH v5  --  CONFIGURATION
    ---------------------------------------------------------------------
    Every tunable number lives here. Nothing in this file touches the DOM
    or the canvas, so gameplay balance can be re-tuned without reading a
@@ -18,7 +18,11 @@
 
   var CONFIG = {
 
-    version: '4.0',
+    version: '5.0',
+
+    /* v5: the Forms this build teaches. Each is its own learner profile -
+       see storage.js - and its own syllabus - see data/syllabus.js. */
+    forms: [1, 2, 3, 4],
 
     /* ---------------------------------------------------------------
        SPEED PRESETS
@@ -300,9 +304,94 @@
     /* Each version keeps its own storage namespace so the versions can sit
        side by side without one overwriting another's progress. Reset only
        ever removes keys carrying this prefix - never localStorage.clear(). */
-    storageKey: 'physics-fruit-rush.v4'
+    storageKey: 'physics-fruit-rush.v5',
+
+    /* ---------------------------------------------------------------
+       CUSTOM FRUIT SPEED  (v5)
+       A percentage of Normal pace. 100 = Normal, 150 = about Extreme,
+       60 = a little calmer than Relaxed. Deliberately NOT a gravity or
+       window value: those are implementation details, and the only thing
+       a student should control is "how fast does it feel".
+
+       The bounds are the safety limits. Even at 150 % with the session
+       ramp fully wound up, the reaction window stays at or above
+       minWindow; at 60 % it never exceeds maxWindow.
+       --------------------------------------------------------------- */
+    customSpeed: { min: 60, max: 150, step: 5, def: 100 }
+  };
+
+  /* -----------------------------------------------------------------
+     SPEED RESOLUTION
+     Every speed choice - a preset key or 'custom' + a percentage -
+     becomes one preset object here, so the game and the settings
+     readout can never disagree about what "115 %" means. Invalid input
+     (NaN, text, out of range) is clamped here, before anything reaches
+     the physics.
+     ----------------------------------------------------------------- */
+  var CS = CONFIG.customSpeed;
+
+  function clampPct(v) {
+    var n = Number(v);
+    if (!isFinite(n)) return CS.def;
+    n = Math.round(n / CS.step) * CS.step;
+    return Math.max(CS.min, Math.min(CS.max, n));
+  }
+
+  var Speed = {
+    clamp: clampPct,
+
+    isKey: function (k) {
+      return k === 'custom' || Object.prototype.hasOwnProperty.call(CONFIG.speeds, k);
+    },
+
+    /* Custom = Normal's rules (fruit count, bombs, stage ramp) at a
+       chosen pace: the reaction window scales by 100/pct, drift and spin
+       scale by pct/100. */
+    resolve: function (key, pct) {
+      if (key !== 'custom') {
+        /* Own keys only: a hand-edited "constructor" must not come back
+           as a function and reach the engine as a preset. */
+        return Object.prototype.hasOwnProperty.call(CONFIG.speeds, key) ? CONFIG.speeds[key] : CONFIG.speeds.normal;
+      }
+      var p = clampPct(pct), N = CONFIG.speeds.normal, f = p / 100;
+      return {
+        key: 'custom', pct: p,
+        windowScale: 1 / f, fruits: N.fruits, bombPeak: N.bombPeak,
+        drift: N.drift * f, spin: N.spin * f, stageRamp: N.stageRamp
+      };
+    },
+
+    /* The "about 4.4 s to answer an easy question" readout. */
+    thinkTime: function (pct) {
+      var w = CONFIG.baseWindow.easy / (clampPct(pct) / 100);
+      return Math.max(CONFIG.minWindow, Math.min(CONFIG.maxWindow, w));
+    },
+
+    /* Where each named preset sits on the same scale, for the slider. */
+    presetPct: function (key) {
+      var p = Object.prototype.hasOwnProperty.call(CONFIG.speeds, key) ? CONFIG.speeds[key] : null;
+      return p ? Math.round(100 / p.windowScale) : CS.def;
+    },
+
+    /* What ANY speed choice means to a student - its pace as a percentage
+       of Normal and the seconds it gives for an easy question - so a
+       preset can be compared with Custom on the same scale. Presets use
+       their exact window scale, so the readout matches the game. */
+    describe: function (key, pct) {
+      if (key === 'custom') {
+        var c = clampPct(pct);
+        return { key: 'custom', pct: c, secs: Speed.thinkTime(c) };
+      }
+      var p = Object.prototype.hasOwnProperty.call(CONFIG.speeds, key) ? CONFIG.speeds[key] : CONFIG.speeds.normal;
+      var w = CONFIG.baseWindow.easy * p.windowScale;
+      return {
+        key: p.key, pct: Math.round(100 / p.windowScale),
+        secs: Math.max(CONFIG.minWindow, Math.min(CONFIG.maxWindow, w))
+      };
+    }
   };
 
   global.PFR = global.PFR || {};
   global.PFR.CONFIG = CONFIG;
+  global.PFR.Speed = Speed;
 })(window);

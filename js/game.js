@@ -1,5 +1,5 @@
 /* =====================================================================
-   PHYSICS FRUIT RUSH v4  --  GAME LOGIC
+   PHYSICS FRUIT RUSH v5  --  GAME LOGIC
    ---------------------------------------------------------------------
    Owns the session: which question comes next, how long the player gets,
    what a slice is worth, lives, stages and the end-of-game report. It
@@ -124,11 +124,18 @@
   Game.prototype.start = function (settings) {
     var mode = CFG.modes[settings.mode] || CFG.modes.quick;
     var speedKey = mode.forceSpeed || settings.speed || 'normal';
-    var preset = CFG.speeds[speedKey] || CFG.speeds.normal;
+    /* v5: a preset key or 'custom' + a percentage. Speed.resolve clamps
+       the percentage, so nothing out of range can reach the engine. */
+    var preset = global.PFR.Speed.resolve(speedKey, settings.customPct);
+
+    /* v5: the round belongs to ONE Form - its questions, its learner and
+       its best scores. main.js hands over that Form's learner. */
+    if (settings.learner) this.learner = settings.learner;
 
     this.settings = {
       mode: mode,
       preset: preset,
+      form: settings.form,
       group: settings.group || 'all',
       duration: mode.durationChoices ? (settings.duration || mode.duration) : mode.duration,
       /* The language is fixed for the whole round. Answer plates are laid
@@ -232,6 +239,9 @@
     if (hasFormula) aExtra += R.formulaBonus;
 
     var w = base * preset.windowScale * stageScale + qExtra + aExtra;
+    /* clamp() lets NaN straight through - every comparison with NaN is
+       false - so a broken value must be caught before it, not by it. */
+    if (!isFinite(w)) w = base;
     return U.clamp(w, CFG.minWindow, CFG.maxWindow);
   };
 
@@ -657,6 +667,7 @@
       topicMisses: topicMisses,
       stars: stars,
       mode: this.settings.mode,
+      form: this.settings.form,
       preset: this.settings.preset,
       group: this.settings.group,
       best: best.value,
@@ -691,7 +702,8 @@
   /* Best score per mode. Owned by Progress so that a single reset clears
      mastery and personal bests together. */
   Game.prototype.recordBest = function (score) {
-    return global.PFR.Progress.recordBest(this.settings.mode.key, score);
+    var scope = global.PFR.Progress.scope(this.settings.form);
+    return scope ? scope.recordBest(this.settings.mode.key, score) : { value: score, isNew: false };
   };
 
   global.PFR = global.PFR || {};

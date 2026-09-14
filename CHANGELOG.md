@@ -7,6 +7,66 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [5.0.0] — 2026-09-14
+
+**Forms 1 to 4.** Physics Fruit Rush grows from a Form 4 game into a KSSM Physics game
+for Forms 1–4. It adds 356 new questions for Forms 1–3, every one in both languages, a
+Form picker and a separate learner profile for each Form.
+
+### Added
+
+* **Forms 1–3 question banks.** 115, 131 and 110 questions, written from the school's
+  Form 1–3 scheme of work, with explanations, misconception notes and full Bahasa Melayu
+  translations. With Form 4's 385, the game has **741 questions**.
+* **`data/syllabus.js`.** It lists the Forms, topic groups and topics in teaching order.
+  Every question must name a Form and a topic from that Form's syllabus.
+* **Choose your Form.** The first visit asks which Form. After that a four-tile Form strip
+  sits above the game modes with the current Form lit. `?form=2` (or `?tingkatan=2`)
+  links open a Form directly and combine with `?lang=bm`.
+* **One Form = one learner profile.** Mastery, weak topics, retries, results and best
+  scores belong to one Form, so Form 1 play never changes Form 2. "Reset this Form's
+  progress" clears one Form only, and the dialog names it.
+* **Custom fruit speed** under *More settings*. A slider runs from 60 % to 150 % of
+  Normal and shows the seconds it gives for an easy question. The same readout shows
+  each preset on that scale (Relaxed 65 % · 6.8 s … Extreme 152 % · 2.9 s).
+* **Safe upgrade from Version 4.** A returning student's Form 4 mastery, best scores and
+  settings are copied into Form 4 once, after validation. Version 4's own data is left
+  untouched.
+* **Every device.** Checked at 22 screen sizes, from a 320 px phone to a 1080p projector,
+  upright and sideways, with touch input.
+* **`tools/qa.html` grows from 7 checks to 22.** New checks cover:
+  * per-Form validation;
+  * storage isolation;
+  * custom-speed limits;
+  * engine hardening;
+  * planted-error tests;
+  * label fit on small and sideways phones.
+
+### Changed
+
+* Progress is stored per Form under `physics-fruit-rush.v5.form<N>.*`, and settings stay
+  global. Question ids carry their Form (`f1-12`).
+* `tools/validate.js` expects `data/syllabus.js` before `data/question-bank.js`, and
+  prints per-Form counts.
+* Question Mix moved under *More settings*. Quick Game uses the player's saved speed.
+* Sideways phones get a compact score bar and question card, which makes the playfield
+  taller. Touch screens get 40 px in-game buttons and setup chips.
+
+### Fixed
+
+* Older iPads and iPhones (iOS 14.0 and earlier) could show a blank screen. The CSS
+  `inset` shorthand is replaced by the four sides.
+* On iPhones with a notch or Dynamic Island held sideways, the HUD buttons could sit
+  under the notch. The game now stays inside the safe area.
+* iOS sound could stop after a phone call or an app switch and not return.
+* iOS double-tap zoom, and text selection during fast taps and swipes.
+* A hand-edited speed key such as `constructor` could reach the engine. Damaged storage
+  could load negative counts or another Form's topic.
+* In Practice, which always plays at Relaxed, the custom-speed slider could still change
+  the saved speed.
+
+---
+
 ## [4.0.0] — 2026-09-10
 
 **English ↔ Bahasa Melayu.** The whole game — every screen, all 385 questions, every

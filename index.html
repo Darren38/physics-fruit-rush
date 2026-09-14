@@ -7,7 +7,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="google" content="notranslate">
-<meta name="description" content="Physics Fruit Rush - a fast arcade recall game for Malaysian KSSM Form 4 Physics, in English and Bahasa Melayu.">
+<meta name="description" content="Physics Fruit Rush - a fast arcade recall game for Malaysian KSSM Physics, Forms 1 to 4, in English and Bahasa Melayu.">
 <meta name="theme-color" content="#0a1024">
 <title>Physics Fruit Rush</title>
 <link rel="stylesheet" href="style.css">
@@ -21,7 +21,7 @@
        LANDING
        ============================================================ -->
   <section class="screen is-active" id="screen-menu">
-    <div class="menu-wrap">
+    <div class="menu-wrap" id="menuWrap">
 
       <!-- Language. Top of the menu, visible without scrolling on any
            screen, and the first thing a student meets. Each option is
@@ -42,13 +42,29 @@
           <span>🍉</span><span>🍊</span><span>🥝</span>
         </div>
         <h1 class="title">PHYSICS<span>FRUIT RUSH</span></h1>
-        <p class="subtitle" data-i18n="menu.subtitle">KSSM FORM 4 PHYSICS</p>
+        <p class="subtitle" data-i18n="menu.subtitle">KSSM PHYSICS</p>
         <p class="tagline"><span data-i18n="menu.tag1">Think Fast.</span> <b data-i18n="menu.tag2">Slice Faster.</b></p>
+      </div>
+
+      <!-- v5: the Form picker - a world select, not a dropdown. Exactly one
+           tile is lit; on a first visit none is, and the menu below stays
+           hidden until the student chooses. Each Form keeps its own
+           progress, so switching never mixes or loses anything. -->
+      <div class="form-picker" id="formPicker" role="group" aria-labelledby="formPrompt">
+        <p class="form-prompt" id="formPrompt" data-i18n="form.choose">Choose your Form</p>
+        <div class="form-tiles">
+          <button type="button" class="form-tile" data-form="1" aria-pressed="false"><span class="form-ico" aria-hidden="true">💡</span><small data-i18n="form.word">FORM</small><b>1</b></button>
+          <button type="button" class="form-tile" data-form="2" aria-pressed="false"><span class="form-ico" aria-hidden="true">⚡</span><small data-i18n="form.word">FORM</small><b>2</b></button>
+          <button type="button" class="form-tile" data-form="3" aria-pressed="false"><span class="form-ico" aria-hidden="true">🚀</span><small data-i18n="form.word">FORM</small><b>3</b></button>
+          <button type="button" class="form-tile" data-form="4" aria-pressed="false"><span class="form-ico" aria-hidden="true">🍉</span><small data-i18n="form.word">FORM</small><b>4</b></button>
+        </div>
+        <p class="form-note" data-i18n="form.note">Each Form keeps its own progress.</p>
       </div>
 
       <div class="menu-buttons">
         <button class="btn btn-primary" data-go="quick">
           <b data-i18n="menu.quick">QUICK GAME</b><small data-i18n="menu.quick.sub">60 seconds · 5 lives · all topics</small>
+          <span class="btn-speed" id="quickSpeed" hidden></span>
           <span class="btn-best" id="bestQuick" hidden></span>
         </button>
         <button class="btn" data-go="topic">
@@ -124,6 +140,7 @@
       <div class="panel-head">
         <button class="icon-btn" data-back="menu" aria-label="Back to menu" data-i18n-aria="nav.back">&#8592;</button>
         <h2 data-i18n="setup.head">Set Up The Round</h2>
+        <span class="pill pill-form" id="setupForm" hidden></span>
       </div>
 
       <div class="setup-block">
@@ -148,10 +165,32 @@
         <div class="chips chips-topics" id="topicChips"></div>
       </div>
 
-      <div class="setup-block" id="mixBlock">
-        <h3 data-title-key="setup.mix"></h3>
-        <div class="chips" id="mixChips"></div>
-        <p class="hint" id="mixHint"></p>
+      <!-- v5: MORE SETTINGS. Collapsed by default: a beginner chooses a mode,
+           a speed and a topic and starts. Advanced players open this. -->
+      <button type="button" class="more-toggle" id="moreToggle" aria-expanded="false" aria-controls="morePanel">
+        <span data-i18n="setup.more">More settings</span><span class="more-chev" aria-hidden="true">▾</span>
+      </button>
+      <div class="more-panel" id="morePanel" hidden>
+        <div class="setup-block more-block" id="customBlock">
+          <h3 id="customSpeedLabel" data-title-key="custom.head"></h3>
+          <p class="hint more-lead" data-i18n="custom.lead">Fine-tune how fast the fruit fly. Moving the slider selects Custom.</p>
+          <div class="speed-row">
+            <span class="speed-end" data-i18n="custom.slower">Slower</span>
+            <input type="range" id="customSpeed" list="speedTicks" aria-labelledby="customSpeedLabel">
+            <span class="speed-end" data-i18n="custom.faster">Faster</span>
+          </div>
+          <datalist id="speedTicks">
+            <option value="65"></option><option value="100"></option><option value="120"></option><option value="150"></option>
+          </datalist>
+          <div class="speed-readout" aria-hidden="true"><span class="speed-tag" id="customSpeedName">Normal</span><b id="customSpeedValue">100%</b><span id="customSpeedThink"></span></div>
+          <button type="button" class="link-btn" id="customSpeedReset" data-i18n="custom.reset">Back to Normal</button>
+        </div>
+
+        <div class="setup-block more-block" id="mixBlock">
+          <h3 data-title-key="setup.mix"></h3>
+          <div class="chips" id="mixChips"></div>
+          <p class="hint" id="mixHint"></p>
+        </div>
       </div>
 
       <div class="setup-actions">
@@ -230,6 +269,7 @@
          single loudest thing on screen and to tie it to the fruit below. -->
     <div class="qbar" id="qbar">
       <div class="qmeta">
+        <span class="pill pill-form" id="qForm">&nbsp;</span>
         <span class="pill" id="qTopic">&nbsp;</span>
         <span class="pill pill-diff" id="qDiff">&nbsp;</span>
       </div>
@@ -279,6 +319,7 @@
        ============================================================ -->
   <section class="screen" id="screen-results">
     <div class="panel">
+      <span class="pill pill-form res-form" id="resForm"></span>
       <h2 class="results-head" id="resultsHead">&nbsp;</h2>
       <div class="stars" id="resStars" role="img"></div>
       <p class="results-msg" id="resultsMsg"></p>
@@ -348,15 +389,29 @@
 </div>
 
 <!-- Order matters: storage before i18n (the saved language), i18n before
-     the dictionaries, the English bank before its translations, and all
-     content before the game modules that read it. Classic scripts, no
-     modules and no fetch, so double-clicking index.html still works. -->
+     the dictionaries, the syllabus and bank before the questions, each
+     Form's English before its translations, and all content before the
+     game modules. Classic scripts, no modules and no fetch, so
+     double-clicking index.html still works. -->
 <script src="js/config.js" charset="utf-8"></script>
 <script src="js/storage.js" charset="utf-8"></script>
 <script src="js/i18n.js" charset="utf-8"></script>
 <script src="lang/en.js" charset="utf-8"></script>
 <script src="lang/ms.js" charset="utf-8"></script>
+<script src="data/syllabus.js" charset="utf-8"></script>
 <script src="data/question-bank.js" charset="utf-8"></script>
+<script src="data/form1/questions-1.js" charset="utf-8"></script>
+<script src="data/form1/questions-2.js" charset="utf-8"></script>
+<script src="data/form1/ms-1.js" charset="utf-8"></script>
+<script src="data/form1/ms-2.js" charset="utf-8"></script>
+<script src="data/form2/questions-1.js" charset="utf-8"></script>
+<script src="data/form2/questions-2.js" charset="utf-8"></script>
+<script src="data/form2/ms-1.js" charset="utf-8"></script>
+<script src="data/form2/ms-2.js" charset="utf-8"></script>
+<script src="data/form3/questions-1.js" charset="utf-8"></script>
+<script src="data/form3/questions-2.js" charset="utf-8"></script>
+<script src="data/form3/ms-1.js" charset="utf-8"></script>
+<script src="data/form3/ms-2.js" charset="utf-8"></script>
 <script src="data/questions-mechanics.js" charset="utf-8"></script>
 <script src="data/questions-heat-waves.js" charset="utf-8"></script>
 <script src="data/questions-light.js" charset="utf-8"></script>

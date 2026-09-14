@@ -7,13 +7,18 @@ and you do not need to know JavaScript for either.
 
 ## Adding or fixing a question
 
-Questions live in three files under `data/`, grouped by subject:
+Questions live under `data/`, one set per Form:
 
-| File | KSSM topics |
-|---|---|
-| `data/questions-mechanics.js` | 1–10 — quantities, motion, forces, momentum, gravitation |
-| `data/questions-heat-waves.js` | 11–19 — heat, gas laws, waves |
-| `data/questions-light.js` | 20–28 — light, EM spectrum, lenses, optical instruments |
+| Form | English questions | Bahasa Melayu |
+|---|---|---|
+| Form 1 | `data/form1/questions-1.js`, `questions-2.js` | `data/form1/ms-1.js`, `ms-2.js` |
+| Form 2 | `data/form2/questions-1.js`, `questions-2.js` | `data/form2/ms-1.js`, `ms-2.js` |
+| Form 3 | `data/form3/questions-1.js`, `questions-2.js` | `data/form3/ms-1.js`, `ms-2.js` |
+| Form 4 | `data/questions-mechanics.js`, `questions-heat-waves.js`, `questions-light.js` | `data/ms/*.ms.js` |
+
+Questions are grouped in blocks, `G('Topic group', 'Topic', [ ...rows ])`. The group and
+topic must exist for that Form in `data/syllabus.js`. The validator rejects a question
+filed under another Form's topic, and a syllabus topic with fewer than five questions.
 
 Each question is one row:
 
@@ -69,8 +74,9 @@ moving fruit.
 
 ## Translating — Bahasa Melayu
 
-Every English question has a Bahasa Melayu row in `data/ms/`, one file per chapter,
-**keyed by the exact English question text**:
+Every English question has a Bahasa Melayu row in the same Form's translation file (see
+the table above), **keyed by the exact English question text**. A translation filed
+under the wrong Form is reported.
 
 ```js
 'SI unit of force?': ['Unit SI bagi daya?',
@@ -95,7 +101,7 @@ Every English question has a Bahasa Melayu row in `data/ms/`, one file per chapt
 * A word stressed in CAPITALS in English ("Which is a **BASE** quantity?") stays
   stressed ("Yang manakah kuantiti **ASAS**?").
 * Same length limits as English. If BM does not fit, rephrase — do not raise the limit.
-* Use KSSM Form 4 textbook terms and DBP spelling. Watch the traps:
+* Use that Form's KSSM textbook terms and DBP spelling. Watch the traps:
   *short-sightedness* is **rabun jauh**, *long-sightedness* is **rabun dekat**;
   *water* is **air**, *air* is **udara**.
 
@@ -105,9 +111,11 @@ reports it as an *orphan* — update the key and the translation together.
 **Interface text** (buttons, headings, feedback) lives in `lang/en.js` and
 `lang/ms.js`. Add every new key to both, with the same `{placeholders}`.
 
-**Adding a third language** needs no code: add `lang/xx.js`, `data/xx/*.xx.js`, a
-button with `data-lang="xx"` in `index.html`, and `'xx'` in `SUPPORTED` in
-`js/i18n.js`.
+**Adding a third language** needs no code. Add these four things:
+* `lang/xx.js`;
+* one translation file per Form that registers with `PFR.Bank.lang('xx', N)`;
+* a button with `data-lang="xx"` in `index.html`;
+* `'xx'` in `SUPPORTED` in `js/i18n.js`.
 
 ---
 
@@ -119,16 +127,17 @@ Run the validator:
 node tools/validate.js
 ```
 
-It checks the English bank (duplicates, missing or over-long options, missing
-explanations, invalid difficulty, misconception notes pointing at options that do
-not exist), **every translation** (complete, same order, same numbers and formulae,
+It checks the English bank: each question's Form and topic against `data/syllabus.js`,
+unique ids, duplicates, missing or over-long options, missing explanations, invalid
+difficulty, and misconception notes pointing at options that do not exist. It also
+checks **every translation** (complete, same order, same numbers and formulae,
 same misconception notes, nothing left in English), the interface dictionaries,
 and that `index.html` loads every content file in a working order. CI runs the
 same check on every pull request.
 
 **No Node?** Open `tools/qa.html` in a browser instead. It runs the same checks and
-also puts every answer label through the real label fitter at desktop, tablet and
-phone sizes. The game itself also runs the checks on page load and prints them to
+also puts every answer label through the real label fitter at desktop, tablet, phone,
+small-phone and sideways-phone sizes. The game itself also runs the checks on page load and prints them to
 the browser console.
 
 Then play a round of **Topic Challenge** on the topic you touched. It is the
@@ -147,7 +156,7 @@ Please keep it that way. Modules are separated by concern:
 
 ```
 config.js    every tunable number (and no display text)
-storage.js   the only owner of localStorage - settings vs progress
+storage.js   the only owner of localStorage - global settings vs per-Form progress
 i18n.js      the only file that knows which language is on screen
 audio.js     synthesised sound (no audio files)
 fruits.js    procedural fruit artwork and answer labels

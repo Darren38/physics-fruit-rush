@@ -89,4 +89,4 @@
     'An EM wave has f = 6 × 10¹⁴ Hz. Wavelength?': ['Gelombang EM mempunyai f = 6 × 10¹⁴ Hz. Panjang gelombang?', ['5 × 10⁻⁷ m', '2 × 10⁶ m', '1.8 × 10²³ m', '5 × 10⁷ m'], 'λ = c ÷ f = 3 × 10⁸ ÷ 6 × 10¹⁴.']
   });
 
-})(window.PFR.Bank.lang('ms'));
+})(window.PFR.Bank.lang('ms', 4));

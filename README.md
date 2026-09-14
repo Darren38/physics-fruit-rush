@@ -2,7 +2,7 @@
 
 # 🍉 Physics Fruit Rush
 
-**A fast arcade quiz game for KSSM Form 4 Physics — in English and Bahasa Melayu.**
+**A fast arcade quiz game for KSSM Physics, Forms 1 to 4 — in English and Bahasa Melayu.**
 
 *Read the question. Slice the right fruit.* · *Baca soalan. Tebas buah yang betul.*
 
@@ -16,10 +16,12 @@
 
 ## What it is
 
-- **385 questions** covering all 28 KSSM Form 4 Physics topics.
+- **741 questions** for KSSM Physics — Form 1 (115), Form 2 (131), Form 3 (110) and Form 4 (385).
+- **Choose your Form** — each Form keeps its own progress, weak topics and best scores.
 - **English and Bahasa Melayu** — switch at the top of the menu. Progress is kept when you switch.
 - **Learn from mistakes** — a wrong answer shows the right one and explains the mistake.
 - **Adapts to you** — topics you get wrong come up more often.
+- **Your own pace** — four speed presets, or a custom fruit speed under *More settings*.
 - **No login, no download** — works offline, and progress stays on your own device.
 
 ## Game modes
@@ -36,9 +38,10 @@
 
 ## For teachers
 
-- Share **<https://darren38.github.io/physics-fruit-rush/?lang=bm>** with a BM class.
-- For a whole-class round, set **Question Mix → Balanced** in the setup screen.
-- Works on laptops, tablets, phones and classroom screens.
+- Share a link that opens the right Form and language, e.g.
+  **<https://darren38.github.io/physics-fruit-rush/?form=2&lang=bm>** (`form` 1–4, `lang` `en` or `bm`).
+- For a whole-class round, set **More settings → Question Mix → Balanced** in the setup screen.
+- Works on Windows and Mac laptops, iPads, Android tablets, phones and classroom screens.
 
 ## Run it offline
 
@@ -46,7 +49,7 @@ Download this repository and double-click `index.html`. Nothing to install.
 
 ## Contributing
 
-Questions and translations are in `data/` — see [CONTRIBUTING.md](CONTRIBUTING.md).
+Questions and translations are in `data/`, one folder per Form — see [CONTRIBUTING.md](CONTRIBUTING.md).
 Check changes with `node tools/validate.js`, or open `tools/qa.html` in a browser.
 Version history is in [CHANGELOG.md](CHANGELOG.md).
 

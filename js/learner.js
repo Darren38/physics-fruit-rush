@@ -28,8 +28,22 @@
 
   var CFG = global.PFR.CONFIG;
 
-  function Learner() {
+  /* v5: a Learner belongs to ONE Form. `scope` is that Form's progress
+     store (Progress.scope(n)); every read and write goes through it, so
+     a Form 1 learner cannot see or touch Form 2 mastery. With no scope
+     (storage refused) the model still works for the session. */
+  function Learner(scope, syllabusTopics) {
+    this.scope = scope || null;
+    this.form = scope ? scope.form : null;
+    /* Only this Form's syllabus topics are ever loaded, so a hand-edited or
+       stale record cannot surface another Form's topic as "practise next". */
+    this.allowed = null;
+    if (syllabusTopics && syllabusTopics.length) {
+      this.allowed = {};
+      for (var i = 0; i < syllabusTopics.length; i++) this.allowed[syllabusTopics[i]] = true;
+    }
     this.topics = {};        // topic -> { m, right, wrong, seen }
+    this.dirty = false;      // changed in this tab since the last save?
     this.load();
   }
 
@@ -52,6 +66,7 @@
   Learner.prototype.record = function (topic, ok) {
     var A = CFG.adaptive;
     var t = this.entry(topic);
+    this.dirty = true;
     t.seen++;
     if (ok) { t.right++; t.m += (1 - t.m) * A.gainCorrect; }
     else { t.wrong++; t.m += (0 - t.m) * A.lossWrong; }
@@ -105,29 +120,32 @@
   var STORE = 'mastery';
 
   Learner.prototype.load = function () {
-    var data = global.PFR.Storage.getJSON(STORE, null);
+    var data = this.scope ? this.scope.getJSON(STORE, null) : null;
     if (!data) return;
     for (var k in data) {
       if (!Object.prototype.hasOwnProperty.call(data, k)) continue;
+      if (this.allowed && !this.allowed[k]) continue;
       var d = data[k];
       if (d && typeof d.m === 'number' && isFinite(d.m)) {
         this.topics[k] = {
           m: Math.max(0, Math.min(1, d.m)),
-          right: d.right | 0, wrong: d.wrong | 0, seen: d.seen | 0
+          right: Math.max(0, d.right | 0), wrong: Math.max(0, d.wrong | 0), seen: Math.max(0, d.seen | 0)
         };
       }
     }
   };
 
   Learner.prototype.save = function () {
-    global.PFR.Storage.setJSON(STORE, this.topics);
+    if (this.scope) this.scope.setJSON(STORE, this.topics);
+    this.dirty = false;
   };
 
   /* Wipes the in-memory model as well as the stored copy, so adaptive
      selection behaves like a brand-new student without a page reload. */
   Learner.prototype.reset = function () {
     this.topics = {};
-    global.PFR.Storage.remove(STORE);
+    this.dirty = false;
+    if (this.scope) this.scope.remove(STORE);
   };
 
   global.PFR = global.PFR || {};

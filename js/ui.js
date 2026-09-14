@@ -1,5 +1,5 @@
 /* =====================================================================
-   PHYSICS FRUIT RUSH v4  --  USER INTERFACE
+   PHYSICS FRUIT RUSH v5  --  USER INTERFACE
    ---------------------------------------------------------------------
    Screen switching, the classroom setup panel, the in-game HUD, feedback
    cards and the results report. This is the only file that touches the
@@ -110,7 +110,23 @@
       snackTitle: $('snackTitle'),
       snackBody: $('snackBody'),
 
-      srAnnounce: $('srAnnounce')
+      srAnnounce: $('srAnnounce'),
+
+      /* v5 */
+      menuWrap: $('menuWrap'),
+      formPicker: $('formPicker'),
+      progressHead: $('progressHead'),
+      quickSpeed: $('quickSpeed'),
+      setupForm: $('setupForm'),
+      qForm: $('qForm'),
+      resForm: $('resForm'),
+      moreToggle: $('moreToggle'),
+      morePanel: $('morePanel'),
+      customSpeed: $('customSpeed'),
+      customSpeedName: $('customSpeedName'),
+      customSpeedValue: $('customSpeedValue'),
+      customSpeedThink: $('customSpeedThink'),
+      customSpeedReset: $('customSpeedReset')
     };
 
     this.current = 'menu';
@@ -121,8 +137,11 @@
     /* Setup selections, remembered across rounds. */
     this.selection = {
       mode: 'quick', speed: 'normal', duration: 40, group: ALL,
-      mix: CFG.adaptive.defaultMix
+      mix: CFG.adaptive.defaultMix, customPct: CFG.customSpeed.def
     };
+    this.form = null;           // the Form on screen (main.js decides)
+    this.groups = [];
+    this.topicGroup = {};
 
     this.modal = null;          // the currently open dialog, if any
     this.snackTimer = null;
@@ -132,6 +151,86 @@
   /* Display name for a topic choice, including "All Topics". */
   UI.prototype.topicLabel = function (group) {
     return group === ALL ? t('topic.all') : I18N.topic(group);
+  };
+
+  /* ---------------------------------------------------------------
+     Forms (v5)
+     The picker sits under the title like a world select: four tiles, one
+     lit. On a first visit nothing is lit and the menu asks the student to
+     choose - the game never guesses which Form they are in.
+     --------------------------------------------------------------- */
+  UI.prototype.formLabel = function (n) { return t('form.name', { n: n }); };
+
+  UI.prototype.bindFormPicker = function (onPick) {
+    var tiles = document.querySelectorAll('[data-form]');
+    for (var i = 0; i < tiles.length; i++) {
+      tiles[i].addEventListener('click', function () {
+        onPick(parseInt(this.getAttribute('data-form'), 10));
+      });
+    }
+  };
+
+  UI.prototype.syncFormPicker = function () {
+    var tiles = document.querySelectorAll('[data-form]');
+    for (var i = 0; i < tiles.length; i++) {
+      var n = parseInt(tiles[i].getAttribute('data-form'), 10);
+      var on = n === this.form;
+      tiles[i].classList.toggle('is-on', on);
+      tiles[i].setAttribute('aria-pressed', on ? 'true' : 'false');
+      tiles[i].setAttribute('aria-label', this.formLabel(n));
+    }
+  };
+
+  UI.prototype.showFormChooser = function () {
+    this.form = null;
+    if (this.el.menuWrap) this.el.menuWrap.classList.add('needs-form');
+    this.syncFormPicker();
+    this.renderFormLabels();
+  };
+
+  /* A mode button pressed before a Form is chosen: point at the picker. */
+  UI.prototype.nudgeFormPicker = function () {
+    var p = this.el.formPicker;
+    if (!p) return;
+    p.classList.remove('nudge');
+    void p.offsetWidth;
+    p.classList.add('nudge');
+    var first = p.querySelector('[data-form]');
+    if (first && first.focus) first.focus();
+    this.announce(t('form.choose'));
+  };
+
+  UI.prototype.setForm = function (n, groups, topicGroup) {
+    this.form = n;
+    if (this.el.menuWrap) this.el.menuWrap.classList.remove('needs-form');
+    this.setTopics(groups, topicGroup);
+    this.selection.group = ALL;          // another Form's topic chip does not exist here
+    this.syncFormPicker();
+    this.renderFormLabels();
+    this.refreshSetup();
+  };
+
+  UI.prototype.renderFormLabels = function () {
+    var name = this.form ? this.formLabel(this.form) : '';
+    if (this.el.progressHead) {
+      this.el.progressHead.textContent = this.form ? t('progress.headForm', { form: I18N.upper(name) }) : t('progress.head');
+    }
+    if (this.el.setupForm) { this.el.setupForm.textContent = name; this.el.setupForm.hidden = !this.form; }
+  };
+
+  /* The Quick Game button says so when it will not play at Normal. */
+  UI.prototype.renderQuickSpeed = function () {
+    var el = this.el.quickSpeed;
+    if (!el) return;
+    var k = this.selection.speed;
+    el.hidden = k === 'normal';
+    el.textContent = k === 'normal' ? '' : t('menu.speedTag', { speed: this.speedLabel(k) });
+  };
+
+  UI.prototype.speedLabel = function (key) {
+    return key === 'custom'
+      ? t('speed.customPct', { pct: this.selection.customPct })
+      : t('speed.' + key);
   };
 
   /* ---------------------------------------------------------------
@@ -170,6 +269,8 @@
      markup has already been redone by I18N.apply() by the time this runs. */
   UI.prototype.relocalize = function (learner) {
     this.labelSetup();
+    this.syncFormPicker();
+    this.renderFormLabels();
     this.refreshSetup();
     this.renderBankInfo();
     this.showMenuProgress(learner);
@@ -287,10 +388,9 @@
      labelSetup() writes their words, so a language change relabels them
      without rebuilding (and without losing the current selection).
      --------------------------------------------------------------- */
-  UI.prototype.buildSetup = function (groups, onStart, topicGroup) {
+  UI.prototype.buildSetup = function (onStart) {
     var self = this;
-    this.groups = groups;
-    this.topicGroup = topicGroup || {};    // fine topic -> the group chip that holds it
+    var Settings = global.PFR.Settings, Speed = global.PFR.Speed, CS = CFG.customSpeed;
 
     function chip(container, attr, value, onPick) {
       var b = document.createElement('button');
@@ -305,14 +405,15 @@
       chip(self.el.modeChips, 'mode', key, function (v) { self.selection.mode = v; });
     });
 
+    /* The presets stay the simple, first-class choice; 'custom' is the
+       fifth chip and is fine-tuned under More settings. */
     this.el.speedChips.innerHTML = '';
-    CFG.speedOrder.forEach(function (key) {
-      chip(self.el.speedChips, 'speed', key, function (v) { self.selection.speed = v; });
-    });
-
-    this.el.topicChips.innerHTML = '';
-    [ALL].concat(groups).forEach(function (g) {
-      chip(self.el.topicChips, 'group', g, function (v) { self.selection.group = v; });
+    CFG.speedOrder.concat(['custom']).forEach(function (key) {
+      chip(self.el.speedChips, 'speed', key, function (v) {
+        self.selection.speed = v;
+        Settings.set('speed', v);
+        if (v === 'custom') self.openMore(true);
+      });
     });
 
     this.el.mixChips.innerHTML = '';
@@ -321,6 +422,36 @@
         self.selection.mix = v;
         global.PFR.Settings.set('mix', v);
       });
+    });
+
+    /* --- More settings: collapsed by default so a beginner never has to
+       read past the four simple choices. --- */
+    this.el.moreToggle.addEventListener('click', function () {
+      self.openMore(self.el.morePanel.hidden);
+      Audio.play('click');
+    });
+
+    /* --- custom fruit speed --- */
+    var slider = this.el.customSpeed;
+    slider.min = CS.min; slider.max = CS.max; slider.step = CS.step;
+    slider.value = Speed.clamp(this.selection.customPct);
+    slider.addEventListener('input', function () {
+      var pct = Speed.clamp(slider.value);
+      self.selection.customPct = pct;
+      /* Moving the slider IS choosing Custom; no second click needed. */
+      self.selection.speed = 'custom';
+      Settings.set('customSpeed', pct);
+      Settings.set('speed', 'custom');
+      self.refreshSetup();
+    });
+    this.el.customSpeedReset.addEventListener('click', function () {
+      self.selection.customPct = CS.def;
+      slider.value = CS.def;
+      self.selection.speed = 'normal';
+      Settings.set('customSpeed', CS.def);
+      Settings.set('speed', 'normal');
+      self.refreshSetup();
+      Audio.play('click');
     });
 
     $('startBtn').addEventListener('click', function () {
@@ -332,12 +463,34 @@
     this.refreshSetup();
   };
 
+  UI.prototype.openMore = function (open) {
+    this.el.morePanel.hidden = !open;
+    this.el.moreToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    this.el.moreToggle.classList.toggle('is-open', !!open);
+  };
+
+  /* Topic chips for the Form on screen. Rebuilt on every Form change. */
+  UI.prototype.setTopics = function (groups, topicGroup) {
+    var self = this;
+    this.groups = groups || [];
+    this.topicGroup = topicGroup || {};
+    this.el.topicChips.innerHTML = '';
+    [ALL].concat(this.groups).forEach(function (g) {
+      var b = document.createElement('button');
+      b.className = 'chip'; b.type = 'button';
+      b.dataset.group = g;
+      b.addEventListener('click', function () { self.selection.group = g; self.refreshSetup(); Audio.play('click'); });
+      self.el.topicChips.appendChild(b);
+    });
+    this.labelSetup();
+  };
+
   UI.prototype.labelSetup = function () {
     var i, c, list;
     list = this.el.modeChips.querySelectorAll('.chip');
     for (i = 0; i < list.length; i++) { c = list[i]; c.textContent = t('mode.' + c.dataset.mode); }
     list = this.el.speedChips.querySelectorAll('.chip');
-    for (i = 0; i < list.length; i++) { c = list[i]; c.textContent = t('speed.' + c.dataset.speed); }
+    for (i = 0; i < list.length; i++) { c = list[i]; c.textContent = this.speedLabel(c.dataset.speed); }
     list = this.el.topicChips.querySelectorAll('.chip');
     for (i = 0; i < list.length; i++) { c = list[i]; c.textContent = this.topicLabel(c.dataset.group); }
     list = this.el.mixChips.querySelectorAll('.chip');
@@ -415,22 +568,54 @@
       chips[i].disabled = !!mode.forceSpeed;
       chips[i].style.opacity = mode.forceSpeed ? 0.45 : 1;
     }
+    /* The custom chip's label carries its percentage, so it changes as
+       the slider moves. */
+    var sc = this.el.speedChips.querySelector('[data-speed="custom"]');
+    if (sc) sc.textContent = this.speedLabel('custom');
+
+    var pct = global.PFR.Speed.clamp(this.selection.customPct);
+    var secs = global.PFR.Speed.thinkTime(pct).toFixed(1);
     this.el.speedHint.textContent = mode.forceSpeed
       ? t('setup.practiceSpeed')
-      : t('speed.' + speedKey + '.blurb');
+      : (speedKey === 'custom' ? t('speed.custom.blurb', { pct: pct, secs: secs }) : t('speed.' + speedKey + '.blurb'));
 
-    /* Step numbers are assigned to the VISIBLE blocks only, so hiding a
-       step never leaves a gap like "1, 3, 4". */
+    /* The readout under More settings describes the speed this round will
+       really use - a preset or Custom - as a percentage of Normal plus what
+       it MEANS: the seconds a student gets for an easy question. That puts
+       the presets on the same scale as the slider, whose thumb rests at the
+       same pace. Practice locks it at Relaxed, so the slider is disabled. */
+    var SP = global.PFR.Speed;
+    var D = SP.describe(speedKey, pct);
+    var dName = speedKey === 'custom' ? t('custom.tag') : t('speed.' + speedKey);
+    var dSecs = D.secs.toFixed(1);
+    this.el.customSpeedName.textContent = dName;
+    this.el.customSpeedValue.textContent = t('custom.value', { pct: D.pct });
+    this.el.customSpeedThink.textContent = t('custom.think', { secs: dSecs });
+    this.el.customSpeed.setAttribute('aria-valuetext', t('custom.valuetext', { name: dName, pct: D.pct, secs: dSecs }));
+    var thumb = SP.clamp(D.pct);             // Extreme (152 %) rests at the 150 % end
+    if (Number(this.el.customSpeed.value) !== thumb) this.el.customSpeed.value = thumb;
+    this.el.customSpeed.disabled = !!mode.forceSpeed;
+    this.el.customSpeedReset.disabled = !!mode.forceSpeed;
+
+    /* Step numbers go to the VISIBLE main blocks only, so hiding a step
+       never leaves a gap like "1, 3, 4". More-settings blocks are titled
+       without a number - they are optional, not a step. */
     var blocks = document.querySelectorAll('#screen-setup .setup-block');
     var step = 0;
     for (var b = 0; b < blocks.length; b++) {
+      var h3 = blocks[b].querySelector('h3');
+      if (blocks[b].classList.contains('more-block')) {
+        if (h3) h3.textContent = t(h3.getAttribute('data-title-key'));
+        continue;
+      }
       if (blocks[b].hidden) continue;
       step++;
-      var h3 = blocks[b].querySelector('h3');
       if (h3) h3.textContent = step + ' · ' + t(h3.getAttribute('data-title-key'));
     }
 
-    var bits = [t('mode.' + mode.key), t('speed.' + speedKey), this.topicLabel(this.selection.group)];
+    this.renderQuickSpeed();
+
+    var bits = [t('mode.' + mode.key), this.speedLabel(speedKey), this.topicLabel(this.selection.group)];
     if (mode.timed) {
       bits.splice(1, 0, t('setup.seconds', { n: mode.durationChoices ? this.selection.duration : mode.duration }));
     }
@@ -463,11 +648,13 @@
      statistics dashboard.
      --------------------------------------------------------------- */
   UI.prototype.showMenuProgress = function (learner) {
-    var Progress = global.PFR.Progress;
-
-    /* Personal bests sit on the mode buttons that own them. */
-    this.showBest(this.el.bestQuick, Progress.bestFor('quick'));
-    this.showBest(this.el.bestTopic, Progress.bestFor('topic'));
+    /* v5: everything on this panel is the CURRENT Form's - its bests, its
+       mastery, its weak topic. */
+    var scope = this.form ? global.PFR.Progress.scope(this.form) : null;
+    this.showBest(this.el.bestQuick, scope ? scope.bestFor('quick') : 0);
+    this.showBest(this.el.bestTopic, scope ? scope.bestFor('topic') : 0);
+    this.renderFormLabels();
+    this.renderQuickSpeed();
 
     var o = learner ? learner.overall() : { answered: 0, mastery: 0 };
     var hasData = o.answered > 0;
@@ -524,7 +711,8 @@
     this.el.banner.hidden = true;
     this.el.qText.textContent = '';
     this.el.qTopic.textContent = this.topicLabel(settings.group);
-    this.el.qDiff.textContent = t('speed.' + settings.preset.key);
+    if (this.el.qForm) this.el.qForm.textContent = t('form.short', { n: settings.form });
+    this.el.qDiff.textContent = this.speedLabel(settings.preset.key);
     this.el.qDiff.className = 'pill pill-diff';
     this.el.qbar.classList.remove('is-urgent');
     this.setTimerBar(1);
@@ -720,6 +908,7 @@
 
   UI.prototype.showResults = function (r) {
     $('resultsHead').textContent = t(RESULT_HEAD[r.reason] || 'res.complete');
+    if (this.el.resForm) this.el.resForm.textContent = this.formLabel(r.form);
 
     var stars = $('resStars');
     stars.innerHTML = '';

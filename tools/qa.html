@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Physics Fruit Rush v4 — QA</title>
+<title>Physics Fruit Rush v5 — QA</title>
 <style>
   :root { --bg:#0b1024; --panel:#141c3a; --line:#2a3666; --text:#eaf1ff; --muted:#9fb0d8; --ok:#56f39a; --bad:#ff6b7d; --warn:#ffc247; }
   * { box-sizing: border-box; }
@@ -29,20 +29,40 @@
 </head>
 <body>
 <main>
-  <h1>Physics Fruit Rush v4 — QA</h1>
-  <p class="lead">Content, translation and layout checks. Open this page after editing any
-    question or interface text. Everything runs offline except the index.html key check,
-    which needs a local web server (<code>python -m http.server</code>).</p>
+  <h1>Physics Fruit Rush v5 — QA</h1>
+  <p class="lead">Content, Form separation, translation, storage, speed and layout checks. Open this page
+    after editing any question, interface text, storage or speed code. Everything runs offline except
+    the key scan of index.html and the scripts, which needs a local web server
+    (<code>python -m http.server</code>). Storage tests run in their own namespace and never read or
+    change a real student's progress.</p>
   <p id="summary">Running…</p>
   <div id="out"></div>
 </main>
 
 <script src="../js/config.js" charset="utf-8"></script>
+<script>
+  /* Storage tests write to a QA-only namespace, so opening this page can
+     never change a real student's progress. storage.js reads this once. */
+  window.PFR.CONFIG.storageKey = 'physics-fruit-rush.v5-qa';
+</script>
 <script src="../js/storage.js" charset="utf-8"></script>
 <script src="../js/i18n.js" charset="utf-8"></script>
 <script src="../lang/en.js" charset="utf-8"></script>
 <script src="../lang/ms.js" charset="utf-8"></script>
+<script src="../data/syllabus.js" charset="utf-8"></script>
 <script src="../data/question-bank.js" charset="utf-8"></script>
+<script src="../data/form1/questions-1.js" charset="utf-8"></script>
+<script src="../data/form1/questions-2.js" charset="utf-8"></script>
+<script src="../data/form1/ms-1.js" charset="utf-8"></script>
+<script src="../data/form1/ms-2.js" charset="utf-8"></script>
+<script src="../data/form2/questions-1.js" charset="utf-8"></script>
+<script src="../data/form2/questions-2.js" charset="utf-8"></script>
+<script src="../data/form2/ms-1.js" charset="utf-8"></script>
+<script src="../data/form2/ms-2.js" charset="utf-8"></script>
+<script src="../data/form3/questions-1.js" charset="utf-8"></script>
+<script src="../data/form3/questions-2.js" charset="utf-8"></script>
+<script src="../data/form3/ms-1.js" charset="utf-8"></script>
+<script src="../data/form3/ms-2.js" charset="utf-8"></script>
 <script src="../data/questions-mechanics.js" charset="utf-8"></script>
 <script src="../data/questions-heat-waves.js" charset="utf-8"></script>
 <script src="../data/questions-light.js" charset="utf-8"></script>
@@ -53,14 +73,25 @@
 <script src="../data/ms/light.ms.js" charset="utf-8"></script>
 <script src="../data/ms/optics.ms.js" charset="utf-8"></script>
 <script src="../js/fruits.js" charset="utf-8"></script>
+<script src="../js/effects.js" charset="utf-8"></script>
+<script src="../js/engine.js" charset="utf-8"></script>
+<script src="../js/learner.js" charset="utf-8"></script>
 <script>
 (function () {
   'use strict';
   var PFR = window.PFR, Bank = PFR.Bank, I18N = PFR.I18N, CFG = PFR.CONFIG, Fruits = PFR.Fruits;
+  var S = PFR.Syllabus, Speed = PFR.Speed;
   var out = document.getElementById('out');
   var results = [];
 
   function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function uniq(list) { var seen = {}; return list.filter(function (x) { if (seen[x]) return false; seen[x] = true; return true; }); }
+  function show(v) {
+    if (typeof v === 'number' && !isFinite(v)) return String(v);
+    var j; try { j = JSON.stringify(v); } catch (e) { j = undefined; }
+    return j === undefined ? String(v) : j;
+  }
 
   function report(title, problems, detail, kind, html) {
     var ok = !problems.length;
@@ -75,29 +106,103 @@
   }
 
   var Q = Bank.build();
+  var FORMS = S.forms();
 
-  /* 1. English source bank ------------------------------------------ */
-  report('English question bank', Bank.validate(Q), Q.length + ' questions, ' + Bank.groups(Q).length +
-    ' topic groups, ' + Bank.topics(Q).length + ' topics.');
+  /* 1. English source bank: Form, syllabus topic, answers, difficulty --
+        (checks 1, 2 and 4 of the Version 5 brief) */
+  (function () {
+    var rows = '';
+    FORMS.forEach(function (f) {
+      var qs = Bank.forForm(Q, f), d = { easy: 0, medium: 0, hard: 0 }, ms = 0;
+      qs.forEach(function (q) {
+        d[q.difficulty] = (d[q.difficulty] || 0) + 1;
+        if (Bank.view(q, 'ms').lang === 'ms') ms++;
+      });
+      rows += '<tr><td>Form ' + f + '</td><td>' + qs.length + '</td><td>' + Bank.groups(qs).length + '</td><td>' +
+        Bank.topics(qs).length + ' / ' + S.topics(f).length + '</td><td>' + d.easy + ' / ' + d.medium + ' / ' + d.hard +
+        '</td><td>' + ms + ' / ' + qs.length + '</td></tr>';
+    });
+    report('English question bank — valid Form, topic from that Form, four answers', Bank.validate(Q),
+      Q.length + ' questions across ' + FORMS.length + ' Forms. Every question must name a real Form, a topic from ' +
+      'THAT Form\'s syllabus, a valid difficulty and exactly four answers, the first being correct.', null,
+      '<div class="tbl"><table><tr><th>Form</th><th>questions</th><th>groups</th><th>topics (used / in syllabus)</th>' +
+      '<th>easy / medium / hard</th><th>BM complete</th></tr>' + rows + '</table></div>');
+  })();
 
-  /* 2. Every translation --------------------------------------------- */
+  /* 2. IDs (check 3) --------------------------------------------------- */
+  (function () {
+    var seen = {}, problems = [];
+    Q.forEach(function (q) {
+      if (seen[q.id]) problems.push('duplicate id ' + q.id + ': "' + q.question + '" and "' + seen[q.id] + '"');
+      seen[q.id] = q.question;
+      if (!new RegExp('^f' + q.form + '-\\d+$').test(q.id)) problems.push(q.id + ' does not carry its Form (' + q.form + ')');
+    });
+    report('Question IDs are unique across every Form', problems,
+      Object.keys(seen).length + ' distinct ids, each prefixed with its Form (f1-…, f2-…, f3-…, f4-…).');
+  })();
+
+  /* 3. No Form loads another Form's questions (check 8) ---------------- */
+  (function () {
+    var problems = [], total = 0, where = {}, shared = [];
+    FORMS.forEach(function (f) {
+      var qs = Bank.forForm(Q, f);
+      total += qs.length;
+      if (!qs.length) problems.push('Form ' + f + ' has no questions');
+      qs.forEach(function (q) {
+        if (q.form !== f) problems.push('forForm(' + f + ') returned ' + q.id + ' from Form ' + q.form);
+        if (S.topics(f).indexOf(q.topic) === -1) problems.push(q.id + ' topic "' + q.topic + '" is not a Form ' + f + ' topic');
+      });
+      S.topics(f).forEach(function (t) { (where[t] = where[t] || []).push(f); });
+    });
+    if (total !== Q.length) problems.push('the Forms hold ' + total + ' questions but the bank has ' + Q.length);
+    Object.keys(where).forEach(function (t) { if (where[t].length > 1) shared.push(t + ' (Forms ' + where[t].join(', ') + ')'); });
+    report('No Form can load another Form\'s questions', problems,
+      'The game plays only from Bank.forForm(n). ' + (shared.length
+        ? 'Topic names shared by more than one Form (kept apart by the per-Form progress store): ' + esc(shared.join('; ')) + '.'
+        : 'No topic name is shared between Forms.'));
+  })();
+
+  /* 4. Every translation (checks 6 and 7) ------------------------------ */
   Bank.languages().forEach(function (code) {
     if (code === 'en') return;
     var cov = Bank.coverage(Q, code);
-    report('Translation: ' + code, Bank.validateLang(Q, code),
-      cov.translated + ' / ' + cov.total + ' questions complete (' + Math.round(100 * cov.translated / cov.total) + '%).');
+    report('Translation: ' + code + ' (every Form)', Bank.validateLang(Q, code),
+      cov.translated + ' / ' + cov.total + ' questions complete (' + Math.round(100 * cov.translated / cov.total) +
+      '%). Translations are filed per Form and matched only against that Form\'s questions.');
   });
 
-  /* 3. The translation validator itself -------------------------------
-        A checker that never fails proves nothing. Break four translations
-        on purpose, in a copy, and confirm each break is reported. */
+  /* 5. The correct answer survives translation (check 5) --------------- */
   (function () {
-    var bad = Q.map(function (q) { return JSON.parse(JSON.stringify(q)); });
-    function findIdx(test) { for (var i = 0; i < bad.length; i++) if (test(bad[i])) return i; return -1; }
-    var a = findIdx(function (q) { return q.answers[0] === 'p = mv'; });
+    var problems = [], n = 0;
+    var WORDY = /[A-Za-z]{3,}|\b(?:at|of|in|on|to|by|or|is|no|up)\b/i;
+    Q.forEach(function (q) {
+      var v = Bank.view(q, 'ms');
+      if (v.lang !== 'ms') return;
+      n++;
+      if (v.answers.length !== q.answers.length) { problems.push(q.id + ' has ' + v.answers.length + ' BM answers for ' + q.answers.length + ' English'); return; }
+      var right = String(v.answers[0]).trim().toLowerCase();
+      for (var i = 1; i < v.answers.length; i++) {
+        if (String(v.answers[i]).trim().toLowerCase() === right) problems.push(q.id + ' BM wrong answer "' + v.answers[i] + '" reads the same as the correct one');
+      }
+      if (!WORDY.test(q.answers[0]) && v.answers[0] !== q.answers[0]) problems.push(q.id + ' correct answer "' + q.answers[0] + '" became "' + v.answers[0] + '" in BM');
+      if (v.why && v.why[0]) problems.push(q.id + ' BM misconception note sits on the correct answer');
+    });
+    report('The correct answer stays correct in Bahasa Melayu', problems,
+      n + ' translated questions checked. Answers are matched by position, so the first BM answer is the translation ' +
+      'of the correct one; the engine marks fruit by answer key, never by label text.');
+  })();
+
+  /* 6. The translation validator itself --------------------------------
+        A checker that never fails proves nothing. Break translations on
+        purpose, in a copy, and confirm each break is reported. */
+  (function () {
+    var bad = Q.map(clone);
+    function findIdx(test) { for (var i = 0; i < bad.length; i++) if (test(bad[i], i)) return i; return -1; }
+    var a = findIdx(function (q) { return q.answers[0] === 'p = mv' && q.tr.ms; });
     var b = findIdx(function (q) { return q.whyIdx && q.tr.ms && q.tr.ms.whyRaw; });
-    var c = findIdx(function (q, i) { return q.tr.ms && q.id > 10; });
-    var d = findIdx(function (q) { return q.id > 200 && q.tr.ms; });
+    var c = findIdx(function (q, i) { return i > 10 && i !== a && i !== b && q.tr.ms; });
+    var d = findIdx(function (q, i) { return i > 200 && i !== a && i !== b && i !== c && q.tr.ms; });
+    if ([a, b, c, d].indexOf(-1) !== -1) { report('The translation validator catches deliberate errors', ['could not find questions to plant the errors in'], ''); return; }
     bad[a].tr.ms.answers[0] = 'p = m v';                        // formula altered
     bad[b].tr.ms.whyRaw = { 'no such option': 'x' };             // why-note on a missing option
     bad[b].tr.ms.why = null;                                     // ... and the real one lost
@@ -116,11 +221,67 @@
       (expect.length - missed.length) + ' of ' + expect.length + ' planted errors reported.');
   })();
 
-  /* 4. Interface dictionaries ---------------------------------------- */
+  /* 7. The Form validator itself --------------------------------------- */
+  (function () {
+    var bad = Q.map(clone), used = {};
+    function pick(test) { for (var i = 0; i < bad.length; i++) if (!used[i] && test(bad[i])) { used[i] = true; return bad[i]; } return null; }
+    function form(n) { return function (q) { return q.form === n; }; }
+    var e = pick(form(1)), f = pick(form(2)), g = pick(form(3)), h = pick(form(4)), k = pick(form(1)), m = pick(form(2));
+    var other = S.topics(3)[0];
+    e.form = 9;                                  // a Form that does not exist
+    f.topic = other;                             // a Form 3 topic filed under Form 2
+    g.id = h.id;                                 // one id used in two Forms
+    h.answers = h.answers.slice(0, 3);           // three answers
+    k.difficulty = 'extreme';                    // not a difficulty
+    m.answers[0] = ''; m.correctAnswer = '';     // correct answer missing
+    var probs = Bank.validate(bad).join('\n');
+
+    /* A translation filed under the wrong Form, and one for a Form that
+       does not exist - registered under a throwaway language code. */
+    var f3text = Bank.forForm(Q, 3)[0].question, entry = {}, e7 = {};
+    entry[f3text] = ['Soalan ujian?', ['a1', 'b1', 'c1', 'd1'], 'Penerangan.'];
+    Bank.lang('qa-test', 1).add(entry);
+    e7['Anything at all?'] = ['Apa-apa?', ['a', 'b', 'c', 'd'], 'Ujian.'];
+    Bank.lang('qa-test', 7).add(e7);
+    var lprobs = Bank.validateLang(Q, 'qa-test').join('\n');
+
+    function lit(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+    var expect = [
+      ['question in a Form that does not exist', /has no valid Form \("9"\)/, probs],
+      ['topic from another Form', new RegExp('topic "' + lit(other) + '" is not in the Form 2 syllabus'), probs],
+      ['one id used in two Forms', /duplicate id/, probs],
+      ['three answers', /has 3 answers - exactly 4 are required/, probs],
+      ['invalid difficulty', /invalid difficulty "extreme"/, probs],
+      ['missing correct answer', /has no correct answer/, probs],
+      ['translation filed under the wrong Form', /Form 1 orphan translation for ".*" \(that question belongs to Form 3\)/, lprobs],
+      ['translation for a Form that does not exist', /registered for unknown Form "7"/, lprobs]
+    ];
+    var missed = expect.filter(function (x) { return !x[1].test(x[2]); }).map(function (x) { return 'not detected: ' + x[0]; });
+    report('The Form validator catches deliberate errors', missed,
+      (expect.length - missed.length) + ' of ' + expect.length + ' planted errors reported (invalid Form, cross-Form topic, ' +
+      'duplicate id, wrong answer count, bad difficulty, missing correct answer, wrong-Form and unknown-Form translations).');
+  })();
+
+  /* 8. Interface dictionaries (check 12) ------------------------------- */
   report('Interface text: key and placeholder parity', I18N.audit(),
     I18N.keys('en').length + ' keys in English, ' + I18N.keys('ms').length + ' in Bahasa Melayu.');
 
-  /* 5. Length comparison (informational) ------------------------------ */
+  (function () {
+    var need = ['form.name', 'form.short', 'form.word', 'form.choose', 'form.note', 'form.announce', 'menu.speedTag',
+      'setup.more', 'speed.customPct', 'speed.custom.blurb', 'custom.head', 'custom.lead', 'custom.slower', 'custom.faster',
+      'custom.value', 'custom.think', 'custom.valuetext', 'custom.reset', 'custom.tag', 'progress.headForm', 'progress.reset',
+      'dlg.reset.title', 'dlg.reset.body', 'snack.reset.title'];
+    var problems = [];
+    ['en', 'ms'].forEach(function (code) {
+      var have = {};
+      I18N.keys(code).forEach(function (k) { have[k] = true; });
+      need.forEach(function (k) { if (!have[k]) problems.push(code + ' is missing "' + k + '"'); });
+    });
+    report('Version 5 interface text exists in both languages', problems,
+      need.length + ' keys for the Form picker, More settings, custom speed and per-Form reset.');
+  })();
+
+  /* 9. Text length (informational) ------------------------------------- */
   (function () {
     var enQ = 0, msQ = 0, enA = 0, msA = 0, n = 0, longest = [];
     Q.forEach(function (q) {
@@ -128,26 +289,26 @@
       enQ += e.question.length; msQ += m.question.length; n++;
       enA += e.answers.join('').length / e.answers.length;
       msA += m.answers.join('').length / m.answers.length;
-      longest.push({ t: m.question, n: m.question.length });
+      longest.push({ t: m.question, n: m.question.length, f: q.form });
     });
     longest.sort(function (a, b) { return b.n - a.n; });
     report('Text length, English vs Bahasa Melayu', [],
       'Average question: EN ' + (enQ / n).toFixed(1) + ' chars, BM ' + (msQ / n).toFixed(1) +
       ' (' + (100 * (msQ / enQ - 1)).toFixed(0) + '% longer). Average answer: EN ' + (enA / n).toFixed(1) +
-      ', BM ' + (msA / n).toFixed(1) + '. Longest BM question: ' + longest[0].n + ' chars — “' + esc(longest[0].t) + '”', 'info');
+      ', BM ' + (msA / n).toFixed(1) + '. Longest BM question (Form ' + longest[0].f + '): ' + longest[0].n + ' chars — “' + esc(longest[0].t) + '”', 'info');
   })();
 
-  /* 6. Every answer label, through the REAL label fitter -----------------
+  /* 10. Every answer label, through the REAL label fitter ----------------
         Lanes are computed exactly as engine.spawnWave computes them, for a
         desktop, a tablet and a portrait phone playfield, with four fruits
         (the tightest case). A plate wider than its lane would sit on the
-        neighbouring answer, so that must never happen. Words broken in the
-        middle are allowed as a last resort but counted, per language. */
+        neighbouring answer, so that must never happen. */
   (function () {
     var V = CFG.view;
     var ctx = document.createElement('canvas').getContext('2d');
     var sizes = [{ name: 'desktop 1280×572', w: 1280, h: 572 }, { name: 'tablet 768×700', w: 768, h: 700 },
-                 { name: 'phone 375×560', w: 375, h: 560 }];
+                 { name: 'phone 375×560', w: 375, h: 560 }, { name: 'small phone 320×470', w: 320, h: 470 },
+                 { name: 'phone sideways 812×270', w: 812, h: 270 }];
     function lane(W, H, n) {
       var radius = Math.max(V.radiusMin, Math.min(V.radiusMax, Math.min(W * V.radiusMinFrac, H * V.radiusMaxFrac)));
       var lane0 = (W - radius * 2.10) / n;
@@ -164,44 +325,392 @@
           Bank.view(q, code).answers.forEach(function (a) {
             var lay = Fruits.labelLayout(ctx, a, L.labelW, L.r);
             n++; fontSum += lay.size; minFont = Math.min(minFont, lay.size);
-            if (lay.plateW > L.labelW + 0.5) { over++; problems.push(code + ' @ ' + sz.name + ': "' + a + '" plate ' + lay.plateW.toFixed(1) + ' > lane ' + L.labelW.toFixed(1)); }
+            if (lay.plateW > L.labelW + 0.5) { over++; problems.push(code + ' F' + q.form + ' @ ' + sz.name + ': "' + a + '" plate ' + lay.plateW.toFixed(1) + ' > lane ' + L.labelW.toFixed(1)); }
             if (lay.lines.length > 3) many++;
-            if (lay.split) { split++; if (sz.w === 375) splits.push(code + ': ' + lay.lines.join(' / ')); }
+            if (lay.split) { split++; if (sz.w === 375) splits.push(code + ' F' + q.form + ': ' + lay.lines.join(' / ')); }
           });
         });
         rows += '<tr><td>' + code + '</td><td>' + sz.name + '</td><td>' + n + '</td><td>' + over + '</td><td>' + many +
           '</td><td>' + split + '</td><td>' + (fontSum / n).toFixed(1) + ' px</td><td>' + minFont.toFixed(1) + ' px</td></tr>';
       });
     });
-    report('Answer labels fit their lanes (real renderer)', problems,
-      'Four-fruit lanes, every answer in every language. Overflow must be zero; words broken mid-word are a last resort and are listed for the phone size.',
+    report('Answer labels fit their lanes (real renderer, every Form)', problems,
+      'Four-fruit lanes, every answer of every Form in both languages. Overflow must be zero; words broken mid-word are a last resort and are listed for the phone size.',
       null,
       '<div class="tbl"><table><tr><th>lang</th><th>playfield</th><th>labels</th><th>overflow</th><th>&gt;3 lines</th><th>mid-word breaks</th><th>avg font</th><th>min font</th></tr>' + rows + '</table></div>' +
       (splits.length ? '<ul>' + splits.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ul>' : ''));
     window.QA_SPLITS = splits;
   })();
 
-  /* 7. index.html uses only known keys (needs http://) ---------------- */
-  function domCheck(done) {
+  /* 11. Storage: per-Form isolation, reset, damage, failure, migration --
+         (check 9). Runs under "physics-fruit-rush.v5-qa." and a fake
+         Version 4 namespace; everything else on the site is compared
+         before and after to prove it was never touched. */
+  (function () {
+    var St = PFR.Storage, P = PFR.Progress, Settings = PFR.Settings, Learner = PFR.Learner, Mig = PFR.Migration;
+    var QA_NS = CFG.storageKey + '.', QA_V4 = 'physics-fruit-rush.v4-qa.', SENTINEL = 'pfr-qa-unrelated-site-key';
+    var LS = null;
+    try { LS = window.localStorage; } catch (e) { LS = null; }
+
+    if (St.key('x') !== 'physics-fruit-rush.v5-qa.x') { report('Storage tests', ['storage is not using the QA namespace - skipped to protect real data'], ''); return; }
+    if (!LS || !St.available()) { report('Storage tests', [], 'Skipped: this browser refuses localStorage on this page.', 'info'); return; }
+
+    function foreign() {
+      var o = [];
+      try {
+        for (var i = 0; i < LS.length; i++) {
+          var k = LS.key(i);
+          if (k.indexOf(QA_NS) === 0 || k.indexOf(QA_V4) === 0 || k === SENTINEL) continue;
+          o.push([k, LS.getItem(k)]);
+        }
+      } catch (e) { return 'unreadable'; }
+      o.sort(function (a, b) { return a[0] < b[0] ? -1 : 1; });
+      return JSON.stringify(o);
+    }
+    function wipeQA() {
+      St.clearPrefix('form'); St.clearPrefix('settings.'); St.clearPrefix('meta.');
+      for (var i = LS.length - 1; i >= 0; i--) { var k = LS.key(i); if (k && k.indexOf(QA_V4) === 0) LS.removeItem(k); }
+    }
+
+    var before = foreign();
+    wipeQA();
+    LS.setItem(SENTINEL, 'keep me');
+    var t1 = S.topics(1)[0], t2 = S.topics(2)[0], f4t = S.topics(4);
+
+    /* A. Isolation */
+    var iso = [];
+    var bases = FORMS.map(function (f) { return P.scope(f).base; }).join(',');
+    if (bases !== 'form1.,form2.,form3.,form4.') iso.push('unexpected Form prefixes: ' + bases);
+    [0, 5, -1, 'x', null, undefined, NaN, '', {}].forEach(function (v) { if (P.scope(v) !== null) iso.push('Progress.scope(' + show(v) + ') was not refused'); });
+    var L1 = new Learner(P.scope(1));
+    for (var i = 0; i < 7; i++) L1.record(t1, false);
+    L1.save();
+    var L2 = new Learner(P.scope(2));
+    if (Object.keys(L2.topics).length) iso.push('a new Form 2 learner already knows: ' + Object.keys(L2.topics).join(', '));
+    if (L2.weight(t1) !== new Learner(null).weight(t1)) iso.push('Form 1 mastery changed a Form 2 selection weight');
+    var L1b = new Learner(P.scope(1));
+    if (!L1b.topics[t1] || L1b.topics[t1].wrong !== 7) iso.push('Form 1 mastery did not persist in its own Form');
+    P.scope(3).recordBest('quick', 1234);
+    FORMS.forEach(function (f) {
+      var b = P.scope(f).bestFor('quick');
+      if (f === 3 ? b !== 1234 : b !== 0) iso.push('Form ' + f + ' Quick Game best reads ' + b);
+    });
+    if (St.ownKeys('form2.').length || St.ownKeys('form4.').length) iso.push('Form 1 / Form 3 progress created keys in Form 2 or Form 4');
+    var keys = St.ownKeys('').map(function (k) { return k.slice(QA_NS.length); });
+    keys.forEach(function (k) { if (!/^(form[1-4]\.|settings\.|meta\.)/.test(k)) iso.push('key outside the three families: ' + k); });
+    report('Learner progress is isolated per Form', iso,
+      'Seven wrong Form 1 answers and a Form 3 best score; nothing appears in any other Form. Keys written: ' + esc(keys.join(', ')) + '.');
+
+    /* B. Reset */
+    var rs = [];
+    Settings.set('lang', 'ms'); Settings.set('customSpeed', '120');
+    P.scope(2).setJSON('mastery', { x: { m: 0.5, right: 1, wrong: 1, seen: 2 } });
+    St.set('meta.test', '1');
+    var r = P.scope(1).reset(L1);
+    if (St.ownKeys('form1.').length) rs.push('Form 1 keys survived its own reset');
+    if (Object.keys(L1.topics).length) rs.push('the in-memory Form 1 learner was not reset');
+    if (!St.ownKeys('form2.').length) rs.push('resetting Form 1 removed Form 2 progress');
+    if (P.scope(3).bestFor('quick') !== 1234) rs.push('resetting Form 1 removed the Form 3 best score');
+    if (Settings.get('lang') !== 'ms' || Settings.get('customSpeed') !== '120') rs.push('resetting Form 1 changed a setting');
+    if (St.get('meta.test') !== '1') rs.push('resetting Form 1 removed bookkeeping');
+    if (LS.getItem(SENTINEL) !== 'keep me') rs.push('resetting Form 1 removed ANOTHER site\'s key');
+    if (St.clearPrefix('').length || St.clearPrefix(null).length) rs.push('clearPrefix("") must refuse to clear everything');
+    if (!St.ownKeys('form3.').length) rs.push('clearPrefix("") removed data');
+    report('Reset removes only the current Form', rs,
+      'Reset Form 1 removed ' + r.removedKeys + ' key(s). Form 2, Form 3, settings, bookkeeping and an unrelated key all survived.');
+
+    /* C. Damaged or hand-edited values */
+    var dm = [];
+    var cases = [['{bad json', 'truncated JSON'], ['[1,2,3]', 'an array'], ['"text"', 'a string'], ['null', 'null'],
+      ['{"' + t2 + '":{"m":"NaN"}}', 'text mastery'], ['{"' + t2 + '":{"m":7,"right":-4,"wrong":-1,"seen":-9}}', 'out-of-range mastery']];
+    cases.forEach(function (c) {
+      LS.setItem(QA_NS + 'form2.mastery', c[0]);
+      try {
+        var L = new Learner(P.scope(2)), e = L.topics[t2];
+        if (c[1] === 'out-of-range mastery') {
+          if (!e || e.m !== 1 || e.right < 0 || e.wrong < 0 || e.seen < 0) dm.push('out-of-range mastery was not clamped: ' + JSON.stringify(e));
+        } else if (Object.keys(L.topics).length) dm.push(c[1] + ' was loaded as mastery');
+        L.record(t2, true); L.save();
+        if (!P.scope(2).getJSON('mastery', null)) dm.push('could not save over ' + c[1]);
+      } catch (err) { dm.push(c[1] + ' threw: ' + err.message); }
+    });
+    /* A record naming another Form's topic (hand-edited, or left by some
+       future renaming) must not surface in this Form's advice. */
+    var f4topic = S.topics(4)[0], mixed = {};
+    mixed[t1] = { m: 0.3, right: 1, wrong: 2, seen: 3 };
+    mixed[f4topic] = { m: 0.1, right: 0, wrong: 5, seen: 5 };
+    LS.setItem(QA_NS + 'form1.mastery', JSON.stringify(mixed));
+    var Lf = new Learner(P.scope(1), S.topics(1));
+    if (!Lf.topics[t1]) dm.push('a valid Form 1 topic was not loaded');
+    if (Lf.topics[f4topic]) dm.push('a Form 4 topic stored in Form 1 was loaded');
+    ['abc', '-5', 'NaN', ''].forEach(function (v) {
+      LS.setItem(QA_NS + 'form2.best.quick', v);
+      var b = P.scope(2).bestFor('quick');
+      if (b !== 0) dm.push('best score "' + v + '" read as ' + b);
+    });
+    [['9', null], ['abc', null], ['0', null], ['2', 2]].forEach(function (c) {
+      LS.setItem(QA_NS + 'settings.form', c[0]);
+      if (Settings.form() !== c[1]) dm.push('saved Form "' + c[0] + '" read as ' + Settings.form());
+    });
+    report('Damaged or hand-edited storage is ignored safely', dm,
+      cases.length + ' damaged mastery records, 4 bad best scores and 4 saved Forms: none threw, none reached the game.');
+
+    /* D. Storage unavailable */
+    var un = [], proto = window.Storage && window.Storage.prototype, saved = {};
+    var methods = ['getItem', 'setItem', 'removeItem', 'key'];
+    if (!proto) un.push('cannot simulate: no Storage prototype');
+    else {
+      methods.forEach(function (m) { saved[m] = proto[m]; proto[m] = function () { throw new Error('QA: storage refused'); }; });
+      St._ok = undefined;
+      try {
+        if (St.available()) un.push('available() still reports true');
+        var Lx = new Learner(P.scope(1));
+        Lx.record(t1, true); Lx.save();
+        if (Settings.set('lang', 'en') !== false) un.push('Settings.set reported success');
+        if (Settings.get('lang', 'fallback') !== 'fallback') un.push('Settings.get did not fall back');
+        var rb = P.scope(1).recordBest('quick', 50);
+        if (!rb || rb.value !== 50) un.push('recordBest did not return the round score');
+        var rr = P.scope(1).reset(Lx);
+        if (rr.storageAvailable !== false) un.push('reset did not report storage unavailable');
+        var mg = Mig.run(f4t);
+        if (mg.ran || mg.reason !== 'storage unavailable') un.push('migration ran without storage: ' + JSON.stringify(mg));
+        if (St.ownKeys('').length) un.push('ownKeys listed keys it cannot read');
+      } catch (err) { un.push('threw: ' + err.message); }
+      methods.forEach(function (m) { proto[m] = saved[m]; });
+      St._ok = undefined;
+    }
+    report('Storage unavailable: the game still works', un,
+      'Every localStorage call made to throw (private window, locked-down school browser, full quota). Nothing threw; a round would play normally and simply not be remembered.');
+
+    /* E. Version 4 migration */
+    var mi = [];
+    wipeQA();
+    Mig.source = QA_V4;
+    var v4 = {}, mastery = {};
+    mastery[f4t[0]] = { m: 0.2, right: 1, wrong: 4, seen: 5 };
+    mastery[f4t[1]] = { m: 'high' };
+    mastery['Not A Form 4 Topic'] = { m: 0.9, right: 9, wrong: 0, seen: 9 };
+    mastery[f4t[2]] = { m: 3, right: -2, wrong: 1, seen: 1 };
+    v4['mastery'] = JSON.stringify(mastery);
+    v4['best.quick'] = '120'; v4['best.survival'] = '-3'; v4['best.timerush'] = 'abc';
+    v4['settings.lang'] = 'ms'; v4['settings.sound'] = 'loud'; v4['settings.mix'] = 'balanced';
+    Object.keys(v4).forEach(function (k) { LS.setItem(QA_V4 + k, v4[k]); });
+    var rep = Mig.run(f4t), m4 = P.scope(4).getJSON('mastery', {});
+    if (!rep.ran) mi.push('migration did not run: ' + rep.reason);
+    if (rep.topics !== 2) mi.push('expected 2 valid topics to migrate, got ' + rep.topics);
+    if (m4['Not A Form 4 Topic']) mi.push('a topic outside the Form 4 syllabus was migrated');
+    if (m4[f4t[1]]) mi.push('a non-numeric mastery was migrated');
+    if (!m4[f4t[2]] || m4[f4t[2]].m !== 1 || m4[f4t[2]].right !== 0) mi.push('out-of-range values were not clamped');
+    if (P.scope(4).bestFor('quick') !== 120) mi.push('a valid best score was not migrated');
+    if (P.scope(4).bestFor('survival') || P.scope(4).bestFor('timerush')) mi.push('an invalid best score was migrated');
+    if (Settings.get('lang') !== 'ms' || Settings.get('mix') !== 'balanced') mi.push('valid settings were not migrated');
+    if (Settings.get('sound', null) !== null) mi.push('an invalid Version 4 sound value was migrated');
+    if (Settings.form() !== 4) mi.push('a returning Form 4 student did not land in Form 4');
+    FORMS.forEach(function (f) { if (f !== 4 && St.ownKeys('form' + f + '.').length) mi.push('migration wrote into Form ' + f); });
+    Object.keys(v4).forEach(function (k) { if (LS.getItem(QA_V4 + k) !== v4[k]) mi.push('Version 4 key "' + k + '" was changed'); });
+    var again = Mig.run(f4t);
+    if (again.ran || again.reason !== 'already migrated') mi.push('migration ran a second time');
+    wipeQA();
+    Object.keys(v4).forEach(function (k) { LS.setItem(QA_V4 + k, v4[k]); });
+    P.scope(4).set('best.quick', '999'); Settings.set('lang', 'en');
+    var third = Mig.run(f4t);
+    if (P.scope(4).bestFor('quick') !== 999) mi.push('migration overwrote existing Version 5 Form 4 progress');
+    if (Settings.get('lang') !== 'en') mi.push('migration overwrote a Version 5 language choice');
+    if (third.topics || third.bests) mi.push('migration copied into a Form 4 profile that already had data');
+    Mig.source = 'physics-fruit-rush.v4.';
+    report('Version 4 progress migrates by copying, safely', mi,
+      'A fake Version 4 profile with valid, invalid and out-of-range values: ' + rep.topics + ' topics, ' + rep.bests +
+      ' best score and ' + rep.settings + ' settings copied; the Version 4 keys are unchanged; it runs once and never overwrites Version 5 data.');
+
+    /* F. Clean up and prove nothing else was touched */
+    wipeQA();
+    var cl = [];
+    if (LS.getItem(SENTINEL) !== 'keep me') cl.push('the unrelated key did not survive the storage tests');
+    LS.removeItem(SENTINEL);
+    if (foreign() !== before) cl.push('keys outside the QA namespace changed during the tests');
+    if (St.ownKeys('').length) cl.push('QA keys left behind: ' + St.ownKeys('').join(', '));
+    report('Storage tests left real data untouched', cl,
+      'Every other key on this site - including real Version 4 and Version 5 progress - was compared before and after.');
+  })();
+
+  /* 12. Custom speed stays within safe limits (check 10) ---------------- */
+  (function () {
+    var CS = CFG.customSpeed, problems = [];
+    var inputs = [NaN, undefined, null, '', 'abc', '120', -50, 0, 1, 59, 60, 61, 62.4, 63, 100, 147.6, 150, 151,
+      1e9, -1e9, Infinity, -Infinity, true, false, {}, [], [120]];
+    inputs.forEach(function (v) {
+      var label = show(v), p = Speed.clamp(v);
+      if (typeof p !== 'number' || !isFinite(p) || p < CS.min || p > CS.max || p % CS.step !== 0) problems.push('clamp(' + label + ') = ' + p);
+      var pr = Speed.resolve('custom', v);
+      ['windowScale', 'drift', 'spin', 'fruits', 'bombPeak'].forEach(function (k) {
+        if (typeof pr[k] !== 'number' || !isFinite(pr[k]) || pr[k] < 0) problems.push('resolve(custom, ' + label + ').' + k + ' = ' + pr[k]);
+      });
+      if (pr.stageRamp !== CFG.speeds.normal.stageRamp) problems.push('resolve(custom, ' + label + ') lost Normal\'s stage ramp');
+      if (pr.windowScale < 100 / CS.max - 1e-9 || pr.windowScale > 100 / CS.min + 1e-9) problems.push('resolve(custom, ' + label + ') window scale ' + pr.windowScale + ' is outside the safe range');
+      var tt = Speed.thinkTime(v);
+      if (!isFinite(tt) || tt < CFG.minWindow || tt > CFG.maxWindow) problems.push('thinkTime(' + label + ') = ' + tt);
+    });
+    Object.keys(CFG.speeds).forEach(function (k) {
+      if (Speed.resolve(k) !== CFG.speeds[k]) problems.push('preset "' + k + '" does not resolve to itself');
+      if (!Speed.isKey(k)) problems.push('isKey rejects the preset "' + k + '"');
+    });
+    ['bogus', undefined, null, '', 'CUSTOM', '__proto__', 'constructor', 'toString'].forEach(function (k) {
+      if (Speed.resolve(k, 100) !== CFG.speeds.normal) problems.push('unknown speed ' + show(k) + ' did not fall back to Normal');
+      if (Speed.isKey(k)) problems.push('isKey accepts ' + show(k));
+    });
+    /* The More-settings readout: every preset described on the same scale
+       as Custom, with the seconds the game will really give. */
+    Object.keys(CFG.speeds).forEach(function (k) {
+      var D = Speed.describe(k), w = CFG.baseWindow.easy * CFG.speeds[k].windowScale;
+      var expect = Math.max(CFG.minWindow, Math.min(CFG.maxWindow, w));
+      if (D.key !== k || D.pct !== Speed.presetPct(k) || Math.abs(D.secs - expect) > 1e-9) problems.push('describe("' + k + '") = ' + JSON.stringify(D));
+    });
+    [NaN, 'abc', 60, 85, 150, 999].forEach(function (v) {
+      var D = Speed.describe('custom', v);
+      if (D.pct !== Speed.clamp(v) || D.secs !== Speed.thinkTime(v)) problems.push('describe(custom, ' + show(v) + ') = ' + JSON.stringify(D));
+    });
+    ['bogus', 'constructor', undefined].forEach(function (k) {
+      if (Speed.describe(k).key !== 'normal') problems.push('describe(' + show(k) + ') did not fall back to Normal');
+    });
+    var rows = '';
+    [CS.min, CS.def, CS.max].forEach(function (pct) {
+      var pr = Speed.resolve('custom', pct);
+      rows += '<tr><td>' + pct + '%</td>' + ['easy', 'medium', 'hard'].map(function (d) {
+        var w = Math.max(CFG.minWindow, Math.min(CFG.maxWindow, CFG.baseWindow[d] * pr.windowScale));
+        return '<td>' + w.toFixed(1) + ' s</td>';
+      }).join('') + '<td>' + pr.drift.toFixed(0) + ' px/s · ' + pr.spin.toFixed(2) + '</td></tr>';
+    });
+    var presets = Object.keys(CFG.speeds).map(function (k) { var D = Speed.describe(k); return k + ' ≈ ' + D.pct + '% · ' + D.secs.toFixed(1) + ' s'; }).join(', ');
+    report('Custom speed stays within safe limits', problems,
+      inputs.length + ' hostile inputs (NaN, text, ±Infinity, out of range, objects) each became a whole ' + CS.step +
+      '% step between ' + CS.min + '% and ' + CS.max + '%. Presets on the same scale: ' + presets + '.', null,
+      '<div class="tbl"><table><tr><th>custom</th><th>easy base window</th><th>medium</th><th>hard</th><th>drift · spin</th></tr>' + rows + '</table></div>');
+  })();
+
+  /* 13. No invalid value can reach the physics (check 11) --------------- */
+  (function () {
+    var problems = [], waves = 0;
+    if (!PFR.Engine) { report('No invalid value can reach the physics', ['engine.js did not load'], ''); return; }
+    var holder = document.createElement('div');
+    holder.style.cssText = 'position:absolute;left:-10000px;top:0;width:800px;height:500px;overflow:hidden';
+    var cv = document.createElement('canvas');
+    cv.style.cssText = 'display:block;width:800px;height:500px';
+    holder.appendChild(cv);
+    document.body.appendChild(holder);
+    var eng;
+    try { eng = new PFR.Engine(cv); } catch (e) { report('No invalid value can reach the physics', ['could not build an engine: ' + e.message], ''); return; }
+
+    var answers = [{ label: 'A', key: 'k0' }, { label: 'B', key: 'k1' }, { label: 'C', key: 'k2' }, { label: 'D', key: 'k3' }];
+    var windows = [NaN, undefined, null, 'abc', -5, 0, 1e-9, 1e9, Infinity, -Infinity, 4];
+    var presets = [null, undefined, {}, { drift: NaN, spin: NaN }, { drift: Infinity, spin: -Infinity },
+      { drift: -1e9, spin: 1e9 }, { drift: 'x', spin: 'y' }, Speed.resolve('custom', NaN), Speed.resolve('custom', 1e9),
+      Speed.resolve('constructor')];
+    var lo = CFG.minWindow * CFG.flight.airtimeMin - 1e-6, hi = CFG.maxWindow * CFG.flight.airtimeMax + 1e-6;
+    function check(tag) {
+      eng.fruits.forEach(function (f) {
+        var bad = ['x', 'y', 'vx', 'vy', 'g', 'rot', 'vrot', 'delay', 'r'].filter(function (k) { return typeof f[k] !== 'number' || !isFinite(f[k]); });
+        if (bad.length) problems.push(tag + ': ' + f.kind + ' has non-finite ' + bad.join(', '));
+        if (!(f.g > 0)) problems.push(tag + ': ' + f.kind + ' has no gravity');
+        if (f.kind === 'answer' && !f.age) {
+          var T = 2 * -f.vy / f.g, apex = f.vy * f.vy / (2 * f.g);
+          if (!(T >= lo && T <= hi)) problems.push(tag + ': airtime ' + T.toFixed(2) + ' s is outside ' + lo.toFixed(2) + '–' + hi.toFixed(2) + ' s');
+          if (apex > eng.H) problems.push(tag + ': the fruit would fly off the top');
+        }
+        if (Math.abs(f.vx) > 120 * 1.2 + 1e-6) problems.push(tag + ': drift of ' + f.vx + ' px/s was not clamped');
+      });
+    }
+    windows.forEach(function (w) {
+      presets.forEach(function (p) {
+        eng.spawnWave({ answers: answers, correctKey: 'k0', window: w, preset: p, bombs: 2 });
+        waves++;
+        check('window ' + show(w) + ', preset ' + show(p));
+      });
+    });
+    var flew = 'skipped (no engine.update)';
+    if (typeof eng.update === 'function') {
+      eng.spawnWave({ answers: answers, correctKey: 'k0', window: NaN, preset: { drift: NaN, spin: Infinity }, bombs: 1 });
+      try { for (var i = 0; i < 180; i++) eng.update(1 / 60); flew = '3 s of simulated flight stayed finite'; }
+      catch (e) { problems.push('update threw: ' + e.message); flew = 'simulated flight threw'; }
+      eng.fruits.forEach(function (f) {
+        ['x', 'y', 'vx', 'vy'].forEach(function (k) { if (!isFinite(f[k])) problems.push('after flight: ' + f.kind + '.' + k + ' = ' + f[k]); });
+      });
+    }
+    holder.parentNode.removeChild(holder);
+    problems = uniq(problems);
+    report('No invalid value can reach the physics', problems.slice(0, 40),
+      waves + ' waves launched with hostile reaction windows and speed presets (NaN, ±Infinity, text, negative, huge). ' +
+      'Every fruit had a finite path, real gravity and an airtime inside the engine\'s safe range; ' + flew + '.');
+  })();
+
+  /* 14. Markup and scripts use only known keys; nothing clears storage --
+         (check 12, and the storage rule). Needs http://. */
+  function scan(done) {
     if (!window.fetch || location.protocol === 'file:') {
-      report('index.html uses only known keys', [], 'Skipped: open this page through a local web server to run it.', 'info');
+      report('index.html and scripts use only known text keys', [], 'Skipped: open this page through a local web server to run it.', 'info');
+      report('No script calls localStorage.clear()', [], 'Skipped: needs a local web server.', 'info');
+      report('The question-bank viewer shows exactly the game\'s questions', [], 'Skipped: needs a local web server.', 'info');
       return done();
     }
-    fetch('../index.html', { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (html) {
-      var re = /data-(?:i18n(?:-aria|-title)?|title-key)="([^"]+)"/g, m, used = {}, problems = [];
-      while ((m = re.exec(html))) used[m[1]] = true;
-      var known = {};
+    var keyFiles = ['../index.html', '../js/ui.js', '../js/main.js', '../js/game.js'];
+    var allJs = ['config', 'storage', 'i18n', 'audio', 'fruits', 'effects', 'engine', 'learner', 'game', 'ui', 'main']
+      .map(function (n) { return '../js/' + n + '.js'; });
+    var files = keyFiles.concat(allJs.filter(function (f) { return keyFiles.indexOf(f) === -1; }))
+      .concat(['question-bank.html']);
+    Promise.all(files.map(function (f) {
+      var optional = f === 'question-bank.html';     // a published copy may leave the viewer out
+      return fetch(f, { cache: 'no-store' }).then(function (r) {
+        if (!r.ok) { if (optional) return null; throw new Error(f + ' HTTP ' + r.status); }
+        return r.text();
+      }, function (err) { if (optional) return null; throw err; });
+    })).then(function (texts) {
+      var known = {}, problems = [], refs = 0, clears = [];
       I18N.keys('en').forEach(function (k) { known[k] = true; });
-      Object.keys(used).forEach(function (k) { if (!known[k]) problems.push('index.html uses unknown key "' + k + '"'); });
-      report('index.html uses only known keys', problems, Object.keys(used).length + ' distinct keys referenced from markup.');
+      texts.forEach(function (src, i) {
+        var name = files[i].replace('../', ''), m;
+        if (keyFiles.indexOf(files[i]) !== -1) {
+          var re = i === 0 ? /data-(?:i18n(?:-aria|-title)?|title-key)="([^"]+)"/g : /\bt\(\s*'([A-Za-z0-9_.]+)'\s*[,)]/g;
+          while ((m = re.exec(src))) { refs++; if (!known[m[1]]) problems.push(name + ' uses unknown key "' + m[1] + '"'); }
+        }
+        if (/\.js$/.test(name)) {
+          var code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+          if (/localStorage\s*\.\s*clear\s*\(|sessionStorage\s*\.\s*clear\s*\(/.test(code)) clears.push(name + ' calls Storage.clear()');
+        }
+      });
+      report('index.html and scripts use only known text keys', uniq(problems),
+        refs + ' references checked: markup attributes and every static t(\'…\') call in ui.js, main.js and game.js.');
+      report('No script calls localStorage.clear()', clears, allJs.length + ' scripts scanned (comments ignored).');
+
+      /* tools/question-bank.html loads the data files itself. If a file is
+         added to the game but not to the viewer, the viewer would quietly
+         show an incomplete bank - so the two lists must match exactly. */
+      function dataScripts(html) {
+        var re = /<script[^>]+src="([^"]+)"/g, mm, found = [];
+        while ((mm = re.exec(html))) { var s = mm[1].replace(/^\.\.\//, ''); if (s.indexOf('data/') === 0) found.push(s); }
+        return found;
+      }
+      var viewerHtml = texts[files.indexOf('question-bank.html')];
+      if (viewerHtml === null) {
+        report('The question-bank viewer shows exactly the game\'s questions', [],
+          'Skipped: tools/question-bank.html is not in this copy (the viewer is optional).', 'info');
+      } else {
+        var gameData = dataScripts(texts[0]), viewData = dataScripts(viewerHtml), vp = [];
+        gameData.forEach(function (s) { if (viewData.indexOf(s) === -1) vp.push('the viewer does not load ' + s); });
+        viewData.forEach(function (s) { if (gameData.indexOf(s) === -1) vp.push('the viewer loads ' + s + ', which the game does not'); });
+        if (!vp.length && gameData.join() !== viewData.join()) vp.push('the viewer loads the data files in a different order from the game');
+        report('The question-bank viewer shows exactly the game\'s questions', vp,
+          gameData.length + ' data files, loaded in the same order as index.html.');
+      }
       done();
-    }).catch(function (e) { report('index.html uses only known keys', ['could not load index.html: ' + e], ''); done(); });
+    }).catch(function (e) {
+      report('index.html and scripts use only known text keys', ['could not load: ' + e.message], '');
+      done();
+    });
   }
 
-  domCheck(function () {
+  scan(function () {
     var failed = results.filter(function (r) { return !r.ok; });
     var el = document.getElementById('summary');
-    el.textContent = failed.length ? failed.length + ' check(s) failing' : 'All checks pass';
+    el.textContent = failed.length ? failed.length + ' check(s) failing' : 'All ' + results.length + ' checks pass';
     el.style.color = failed.length ? '#ff6b7d' : '#56f39a';
     window.QA = { results: results, failed: failed.length, questions: Q };
   });
