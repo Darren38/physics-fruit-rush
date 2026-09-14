@@ -145,6 +145,20 @@ fastest way to see your question the way a student will.
 
 ---
 
+## Releasing a new version
+
+1. Set `version` in `js/config.js` to the new number, for example `'6.1'`.
+2. Change every `?v=` in `index.html` (the style sheet and every script) to the same
+   number. Browsers then fetch the new files instead of reusing copies cached from the
+   previous release, which GitHub Pages allows for 10 minutes.
+3. Run `node tools/validate.js`. It fails if any file is missing the tag, or if the
+   numbers differ.
+
+Never change `storageKey` in `js/config.js`. It is the name students' progress is saved
+under, not the release number.
+
+---
+
 ## Changing the game itself
 
 Every tunable number lives in `js/config.js` — speeds, reaction windows, scoring,

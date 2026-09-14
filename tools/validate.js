@@ -18,6 +18,8 @@
        order, same numbers, same formulae, same misconception notes
      * the interface dictionaries (lang/*.js): same keys and placeholders
      * that index.html loads every content file, in a working order
+     * that every file index.html loads carries the release tag (?v=),
+       matching js/config.js, so an update never mixes with cached files
      * that nothing calls localStorage.clear()
 
    v5: the syllabus loads BEFORE the question bank, because the bank
@@ -44,7 +46,7 @@ function scriptsInIndex() {
   const re = /<script[^>]+src="([^"]+)"/g;
   const out = [];
   let m;
-  while ((m = re.exec(html)) !== null) out.push(m[1]);
+  while ((m = re.exec(html)) !== null) out.push(m[1].split('?')[0]);   // "js/main.js?v=6.0" -> "js/main.js"
   return out;
 }
 
@@ -166,6 +168,31 @@ function checkUnreferenced() {
   return problems;
 }
 
+/* 4. Release tag. GitHub Pages lets browsers reuse a file for 10 minutes,
+      so right after an update a browser could pair the new index.html with
+      an old style.css or lang file - a broken, half-updated page. Every
+      file index.html loads therefore carries ?v=<release>, and the release
+      must match js/config.js, so an update always asks for new files. */
+function checkAssetVersions() {
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const cfg = fs.readFileSync(path.join(ROOT, 'js', 'config.js'), 'utf8');
+  const ver = /version:\s*'([^']+)'/.exec(cfg);
+  if (!ver) return ['js/config.js has no version'];
+  const want = 'v=' + ver[1];
+  const problems = [];
+  const re = /<(?:script[^>]+src|link[^>]+href)="([^"]+)"/g;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    const url = m[1];
+    if (/^(https?:)?\/\//.test(url) || url.indexOf('data:') === 0) continue;   // not one of our files
+    if ((url.split('?')[1] || '') !== want) {
+      problems.push('index.html loads ' + url + ' - it needs ?' + want + ' (the version in js/config.js), ' +
+        'or browsers can mix old and new files after an update');
+    }
+  }
+  return problems;
+}
+
 function main() {
   let PFR;
   try {
@@ -184,7 +211,8 @@ function main() {
     .concat(I18N.audit())
     .concat(checkNoStorageClear())
     .concat(checkScriptOrder())
-    .concat(checkUnreferenced());
+    .concat(checkUnreferenced())
+    .concat(checkAssetVersions());
 
   const summary = Bank.summary(questions);
   const forms = Object.keys(summary.byForm || {});

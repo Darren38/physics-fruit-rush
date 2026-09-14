@@ -7,6 +7,28 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [6.0.0] — 2026-09-14
+
+**No more half-updated pages after an update.** Right after 5.0.0 went live, a browser
+that had opened the site shortly before could show the new page with the previous
+version's style sheet and text file. GitHub Pages lets a browser reuse each file for 10
+minutes.
+
+### Fixed
+
+* Every file `index.html` loads now carries the release number (`style.css?v=6.0`,
+  `js/main.js?v=6.0`, …), so a new release always fetches matching files.
+
+### Added
+
+* `tools/validate.js` and `tools/qa.html` fail if a file in `index.html` is missing the
+  release tag, or if its tag differs from `version` in `js/config.js`.
+
+Questions, features and saved progress are unchanged. The save-data name stays
+`physics-fruit-rush.v5`.
+
+---
+
 ## [5.0.0] — 2026-09-14
 
 **Forms 1 to 4.** Physics Fruit Rush grows from a Form 4 game into a KSSM Physics game

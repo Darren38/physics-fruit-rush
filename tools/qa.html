@@ -649,6 +649,7 @@
       report('index.html and scripts use only known text keys', [], 'Skipped: open this page through a local web server to run it.', 'info');
       report('No script calls localStorage.clear()', [], 'Skipped: needs a local web server.', 'info');
       report('The question-bank viewer shows exactly the game\'s questions', [], 'Skipped: needs a local web server.', 'info');
+      report('Every file the game loads carries the release tag', [], 'Skipped: needs a local web server.', 'info');
       return done();
     }
     var keyFiles = ['../index.html', '../js/ui.js', '../js/main.js', '../js/game.js'];
@@ -685,9 +686,22 @@
          show an incomplete bank - so the two lists must match exactly. */
       function dataScripts(html) {
         var re = /<script[^>]+src="([^"]+)"/g, mm, found = [];
-        while ((mm = re.exec(html))) { var s = mm[1].replace(/^\.\.\//, ''); if (s.indexOf('data/') === 0) found.push(s); }
+        while ((mm = re.exec(html))) { var s = mm[1].replace(/^\.\.\//, '').split('?')[0]; if (s.indexOf('data/') === 0) found.push(s); }
         return found;
       }
+      /* Right after an update, a browser may reuse files it cached from the
+         old release for up to 10 minutes on GitHub Pages. Every file the
+         game loads carries ?v=<release> so it always asks for the new ones. */
+      var want = 'v=' + CFG.version, tagProblems = [], tagged = 0, tre = /<(?:script[^>]+src|link[^>]+href)="([^"]+)"/g, tm;
+      while ((tm = tre.exec(texts[0]))) {
+        var u = tm[1];
+        if (/^(https?:)?\/\//.test(u) || u.indexOf('data:') === 0) continue;
+        if ((u.split('?')[1] || '') === want) tagged++;
+        else tagProblems.push('index.html loads ' + u + ' without ?' + want + ' (the version in js/config.js)');
+      }
+      report('Every file the game loads carries the release tag', tagProblems,
+        tagged + ' files load as "file?' + want + '", so an update can never mix with files a browser cached from the old one.');
+
       var viewerHtml = texts[files.indexOf('question-bank.html')];
       if (viewerHtml === null) {
         report('The question-bank viewer shows exactly the game\'s questions', [],

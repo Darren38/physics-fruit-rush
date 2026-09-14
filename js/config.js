@@ -18,7 +18,10 @@
 
   var CONFIG = {
 
-    version: '5.0',
+    /* The release number. index.html loads every file as "file?v=<this>",
+       so a new release never mixes with files a browser cached from the
+       old one. Change both together - tools/validate.js checks they match. */
+    version: '6.0',
 
     /* v5: the Forms this build teaches. Each is its own learner profile -
        see storage.js - and its own syllabus - see data/syllabus.js. */
@@ -304,6 +307,8 @@
     /* Each version keeps its own storage namespace so the versions can sit
        side by side without one overwriting another's progress. Reset only
        ever removes keys carrying this prefix - never localStorage.clear(). */
+    /* The save-data name, NOT the release number: it stays v5 across
+       releases, or every student's progress would seem to vanish. */
     storageKey: 'physics-fruit-rush.v5',
 
     /* ---------------------------------------------------------------
