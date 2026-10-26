@@ -57,7 +57,10 @@
       { group: 'Light', topics: ['Reflection of Light', 'Total Internal Reflection', 'Refraction of Light'] },
       { group: 'EM Spectrum', topics: ['Electromagnetic Spectrum'] },
       { group: 'Lenses', topics: ['Concave Lens', 'Convex Lens'] },
-      { group: 'Optical Instruments', topics: ['Magnifying Glass', 'Microscope', 'Telescope'] }
+      { group: 'Optical Instruments', topics: ['Magnifying Glass', 'Microscope', 'Telescope'] },
+      /* v7: the school's own assessments, so students can drill exactly
+         those questions as one topic. Later assessments add topics here. */
+      { group: 'Assessment Practice', topics: ['Post-Assessment'] }
     ]
   };
 

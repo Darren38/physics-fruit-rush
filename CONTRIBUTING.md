@@ -14,7 +14,7 @@ Questions live under `data/`, one set per Form:
 | Form 1 | `data/form1/questions-1.js`, `questions-2.js` | `data/form1/ms-1.js`, `ms-2.js` |
 | Form 2 | `data/form2/questions-1.js`, `questions-2.js` | `data/form2/ms-1.js`, `ms-2.js` |
 | Form 3 | `data/form3/questions-1.js`, `questions-2.js` | `data/form3/ms-1.js`, `ms-2.js` |
-| Form 4 | `data/questions-mechanics.js`, `questions-heat-waves.js`, `questions-light.js` | `data/ms/*.ms.js` |
+| Form 4 | `data/questions-mechanics.js`, `questions-heat-waves.js`, `questions-light.js`, `questions-assessment.js` | `data/ms/*.ms.js` |
 
 Questions are grouped in blocks, `G('Topic group', 'Topic', [ ...rows ])`. The group and
 topic must exist for that Form in `data/syllabus.js`. The validator rejects a question

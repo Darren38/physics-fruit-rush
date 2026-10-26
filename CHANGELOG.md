@@ -7,6 +7,27 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [7.0.0] — 2026-10-26
+
+**Post-assessment practice and a gentler default speed.**
+
+### Added
+
+* **The Form 4 post-assessment questions** (30, from the 2 Nov 2026 assessment) as their
+  own Form 4 topic, *Assessment Practice → Post-Assessment*, in English and Bahasa Melayu.
+  The 5 written calculations became four-option questions whose wrong answers are common
+  slips: °C instead of kelvin, an inverted ratio, multiplying instead of dividing. Form 4
+  now has 415 questions; the game has 771.
+
+### Changed
+
+* **Normal (the default speed) is 15 % slower.** An easy question gets 5.1 s instead of
+  4.4 s, and the fruit drift more gently. The other presets are unchanged. Custom speed is
+  a percentage of Normal, so its readout stays correct: Relaxed 74 %, Fast 140 % and
+  Extreme 174 % of Normal.
+
+---
+
 ## [6.0.0] — 2026-09-14
 
 **No more half-updated pages after an update.** Right after 5.0.0 went live, a browser

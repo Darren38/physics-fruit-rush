@@ -16,7 +16,7 @@
 
 ## What it is
 
-- **741 questions** for KSSM Physics — Form 1 (115), Form 2 (131), Form 3 (110) and Form 4 (385).
+- **771 questions** for KSSM Physics — Form 1 (115), Form 2 (131), Form 3 (110) and Form 4 (415).
 - **Choose your Form** — each Form keeps its own progress, weak topics and best scores.
 - **English and Bahasa Melayu** — switch at the top of the menu. Progress is kept when you switch.
 - **Learn from mistakes** — a wrong answer shows the right one and explains the mistake.
@@ -41,6 +41,7 @@
 - Share a link that opens the right Form and language, e.g.
   **<https://darren38.github.io/physics-fruit-rush/?form=2&lang=bm>** (`form` 1–4, `lang` `en` or `bm`).
 - For a whole-class round, set **More settings → Question Mix → Balanced** in the setup screen.
+- To revise for the Form 4 post-assessment, choose **Form 4 → Topic Challenge → Assessment Practice**.
 - Works on Windows and Mac laptops, iPads, Android tablets, phones and classroom screens.
 
 ## Run it offline

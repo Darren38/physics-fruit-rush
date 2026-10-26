@@ -21,7 +21,7 @@
     /* The release number. index.html loads every file as "file?v=<this>",
        so a new release never mixes with files a browser cached from the
        old one. Change both together - tools/validate.js checks they match. */
-    version: '6.0',
+    version: '7.0',
 
     /* v5: the Forms this build teaches. Each is its own learner profile -
        see storage.js - and its own syllabus - see data/syllabus.js. */
@@ -48,8 +48,11 @@
         stageRamp: false     // does the session get harder over time?
       },
       normal: {
+        /* v7: the default is a little slower - 15 % more time per
+           question (an easy one: 4.4 s -> 5.1 s) and a gentler drift.
+           Custom speed is a % of THIS preset, so it follows along. */
         key: 'normal',
-        windowScale: 1.00, fruits: 4, bombPeak: 1, drift: 34, spin: 0.9, stageRamp: true
+        windowScale: 1.15, fruits: 4, bombPeak: 1, drift: 30, spin: 0.9, stageRamp: true
       },
       fast: {
         key: 'fast',
@@ -361,21 +364,21 @@
       var p = clampPct(pct), N = CONFIG.speeds.normal, f = p / 100;
       return {
         key: 'custom', pct: p,
-        windowScale: 1 / f, fruits: N.fruits, bombPeak: N.bombPeak,
+        windowScale: N.windowScale / f, fruits: N.fruits, bombPeak: N.bombPeak,
         drift: N.drift * f, spin: N.spin * f, stageRamp: N.stageRamp
       };
     },
 
     /* The "about 4.4 s to answer an easy question" readout. */
     thinkTime: function (pct) {
-      var w = CONFIG.baseWindow.easy / (clampPct(pct) / 100);
+      var w = CONFIG.baseWindow.easy * CONFIG.speeds.normal.windowScale / (clampPct(pct) / 100);
       return Math.max(CONFIG.minWindow, Math.min(CONFIG.maxWindow, w));
     },
 
     /* Where each named preset sits on the same scale, for the slider. */
     presetPct: function (key) {
       var p = Object.prototype.hasOwnProperty.call(CONFIG.speeds, key) ? CONFIG.speeds[key] : null;
-      return p ? Math.round(100 / p.windowScale) : CS.def;
+      return p ? Math.round(100 * CONFIG.speeds.normal.windowScale / p.windowScale) : CS.def;
     },
 
     /* What ANY speed choice means to a student - its pace as a percentage
@@ -390,7 +393,7 @@
       var p = Object.prototype.hasOwnProperty.call(CONFIG.speeds, key) ? CONFIG.speeds[key] : CONFIG.speeds.normal;
       var w = CONFIG.baseWindow.easy * p.windowScale;
       return {
-        key: p.key, pct: Math.round(100 / p.windowScale),
+        key: p.key, pct: Math.round(100 * CONFIG.speeds.normal.windowScale / p.windowScale),
         secs: Math.max(CONFIG.minWindow, Math.min(CONFIG.maxWindow, w))
       };
     }

@@ -66,12 +66,14 @@
 <script src="../data/questions-mechanics.js" charset="utf-8"></script>
 <script src="../data/questions-heat-waves.js" charset="utf-8"></script>
 <script src="../data/questions-light.js" charset="utf-8"></script>
+<script src="../data/questions-assessment.js" charset="utf-8"></script>
 <script src="../data/ms/mechanics-1.ms.js" charset="utf-8"></script>
 <script src="../data/ms/mechanics-2.ms.js" charset="utf-8"></script>
 <script src="../data/ms/heat.ms.js" charset="utf-8"></script>
 <script src="../data/ms/waves.ms.js" charset="utf-8"></script>
 <script src="../data/ms/light.ms.js" charset="utf-8"></script>
 <script src="../data/ms/optics.ms.js" charset="utf-8"></script>
+<script src="../data/ms/assessment.ms.js" charset="utf-8"></script>
 <script src="../js/fruits.js" charset="utf-8"></script>
 <script src="../js/effects.js" charset="utf-8"></script>
 <script src="../js/engine.js" charset="utf-8"></script>
@@ -546,7 +548,8 @@
         if (typeof pr[k] !== 'number' || !isFinite(pr[k]) || pr[k] < 0) problems.push('resolve(custom, ' + label + ').' + k + ' = ' + pr[k]);
       });
       if (pr.stageRamp !== CFG.speeds.normal.stageRamp) problems.push('resolve(custom, ' + label + ') lost Normal\'s stage ramp');
-      if (pr.windowScale < 100 / CS.max - 1e-9 || pr.windowScale > 100 / CS.min + 1e-9) problems.push('resolve(custom, ' + label + ') window scale ' + pr.windowScale + ' is outside the safe range');
+      var NW = CFG.speeds.normal.windowScale;      // custom % is a % of Normal
+      if (pr.windowScale < NW * 100 / CS.max - 1e-9 || pr.windowScale > NW * 100 / CS.min + 1e-9) problems.push('resolve(custom, ' + label + ') window scale ' + pr.windowScale + ' is outside the safe range');
       var tt = Speed.thinkTime(v);
       if (!isFinite(tt) || tt < CFG.minWindow || tt > CFG.maxWindow) problems.push('thinkTime(' + label + ') = ' + tt);
     });
